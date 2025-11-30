@@ -1679,24 +1679,20 @@
     }
 
 
+        // ... all the functions (like updateSubjectLeaderboard) must end here ...
+
     // -------------------------------------
     // 🚀 9. APP START
     // -------------------------------------
-
+    
+    // This is the single, crucial function that runs when the page is fully loaded.
     window.onload = () => {
-        initializeData();
+        // 1. Set up all data structures (students, teachers, MCQs) if they don't exist.
+        initializeData(); 
+        
+        // 2. Check if a user is logged in and render the appropriate screen (Dashboard or Login).
         checkAuth();
     };
-    // ... rest of the functions ...
-
-// 🚀 9. APP START
-// --- TEMPORARY CHECK ---
-alert("Script is running!"); 
-// -----------------------
-window.onload = () => {
-    initializeData();
-    checkAuth();
-};
     
 </script>
 </body>
