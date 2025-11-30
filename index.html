@@ -3,43 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPS Pethgam Portal</title>
+    <title>GPS Pethgam Wagoora Assignment Portal</title>
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
     <!-- Load Firebase SDKs -->
     <script type="module">
+        // Import necessary Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getDatabase, ref as dbRef, update as dbUpdate, onValue as dbOnValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-        // --- 1. YOUR FIREBASE CONFIGURATION ---
-        // This is the object you copied from the Firebase console.
-        const firebaseConfig = {
-          apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
-          authDomain: "wap-ps-pethgam.firebaseapp.com",
-          databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
-          projectId: "wap-ps-pethgam",
-          storageBucket: "wap-ps-pethgam.firebasestorage.app",
-          messagingSenderId: "430925411362",
-          appId: "1:430925411362:web:22857dee585d02fc54467b"
+        // Global Firebase variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
+            authDomain: "wap-ps-pethgam.firebaseapp.com",
+            databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
+            projectId: "wap-ps-pethgam",
+            storageBucket: "wap-ps-pethgam.firebasestorage.app",
+            messagingSenderId: "430925411362",
+            appId: "1:430925411362:web:22857dee585d02fc54467b"
         };
-        // ------------------------------------
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // Initialize Firebase
+        // Initialize Firebase services
         const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const rtdb = getDatabase(app);
 
-        // Reference to the 'pethgam' path in the Realtime Database
-        // This is where all location data will be stored.
-        const pethgamRef = ref(database, 'pethgam');
+        // State variables
+        let userId = null;
+        let isAuthReady = false;
+        let rtdbWatchId = null;
 
-        // Global variables for UI elements
+        // --- UI ELEMENTS ---
         const portalStatusEl = document.getElementById('portal-status');
         const locationDisplayEl = document.getElementById('location-display');
         const errorEl = document.getElementById('error-message');
+        const remoteDisplayEl = document.getElementById('remote-location-display');
+        const mapLinkEl = document.getElementById('map-link');
+        const loginFormEl = document.getElementById('login-form');
+        const loginContainerEl = document.getElementById('login-container');
+        const assignmentContainerEl = document.getElementById('assignment-portal-container');
+        const welcomeMessageEl = document.getElementById('welcome-message');
 
-        // --- GEOLOCATION AND DATA UPLOAD ---
+
+        // --- FIREBASE AUTHENTICATION ---
+
+        async function initAuth() {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                console.log("Firebase Auth initialized.");
+            } catch (error) {
+                console.error("Firebase Auth failed:", error);
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    isAuthReady = true;
+                    console.log("User authenticated:", userId);
+                } else {
+                    userId = null;
+                    isAuthReady = true;
+                    console.log("User not authenticated.");
+                }
+                
+                // Once auth state is known, check for existing session
+                checkSession();
+                
+                // Start listening for remote data regardless of login state (for cross-device view)
+                setupDataListener();
+            });
+        }
+        
+        // --- LOGIN LOGIC (Placeholder for this example) ---
+        
+        // In a real app, this would validate credentials against a backend
+        // For this demo, we use a simple hardcoded check to show the flow.
+        const VALID_LOGIN = {
+            role: "Teacher",
+            user: "Ashraf_Wagoora",
+            pin: "1234"
+        };
+
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const role = document.getElementById('role-select').value;
+            const username = document.getElementById('username-input').value.trim();
+            const pin = document.getElementById('pin-input').value.trim();
+            
+            errorEl.textContent = '';
+
+            if (role === VALID_LOGIN.role && username === VALID_LOGIN.user && pin === VALID_LOGIN.pin) {
+                // Successful login transition
+                sessionStorage.setItem('portal_logged_in', 'true');
+                sessionStorage.setItem('portal_username', username);
+                transitionToAssignmentPortal(username);
+            } else {
+                errorEl.textContent = 'Login Failed: Invalid Role, Username, or PIN.';
+            }
+        }
+        
+        function checkSession() {
+            if (sessionStorage.getItem('portal_logged_in') === 'true' && isAuthReady) {
+                const username = sessionStorage.getItem('portal_username') || 'User';
+                transitionToAssignmentPortal(username);
+            } else {
+                 // Show login form if not logged in
+                loginContainerEl.classList.remove('hidden');
+                assignmentContainerEl.classList.add('hidden');
+            }
+        }
+
+        function transitionToAssignmentPortal(username) {
+            loginContainerEl.classList.add('hidden');
+            assignmentContainerEl.classList.remove('hidden');
+            welcomeMessageEl.textContent = `Welcome, ${username}! (User ID: ${userId})`;
+        }
+
+
+        // --- GEOLOCATION AND DATA UPLOAD (Assignment Portal Logic) ---
+        
+        const pethgamDbRef = dbRef(rtdb, 'pethgam');
 
         // Function to handle successful geolocation retrieval
         function success(pos) {
@@ -51,8 +146,7 @@
                 longitude: crd.longitude,
                 accuracy: crd.accuracy,
                 timestamp: timestamp,
-                // Using a fixed ID for the "pethgam" device to simplify updates
-                deviceId: 'pethgam-device' 
+                deviceId: userId || 'anonymous-device' // Use the actual Firebase User ID
             };
 
             // Display current location locally
@@ -64,16 +158,15 @@
                 <p><strong>Last Updated:</strong> ${timestamp}</p>
             `;
 
-            // Clear any previous errors
             errorEl.textContent = '';
             
-            // Update the single 'pethgam-device' node in the database
-            const deviceRef = ref(database, 'pethgam/' + locationData.deviceId);
-            update(deviceRef, locationData)
+            // Update the single device node in the Realtime Database
+            const deviceRef = dbRef(rtdb, 'pethgam/' + locationData.deviceId);
+            dbUpdate(deviceRef, locationData)
                 .then(() => {
                     console.log("Location data saved successfully to Firebase.");
                     portalStatusEl.textContent = 'Portal is ACTIVE and sharing location.';
-                    portalStatusEl.className = 'text-green-600 font-bold';
+                    portalStatusEl.className = 'text-green-400 font-bold';
                 })
                 .catch((error) => {
                     console.error("Error saving location:", error);
@@ -86,7 +179,7 @@
             console.warn(`ERROR(${err.code}): ${err.message}`);
             errorEl.textContent = `Geolocation Error: ${err.message}. Please enable location services.`;
             portalStatusEl.textContent = 'Portal is INACTIVE: Location permission denied or unavailable.';
-            portalStatusEl.className = 'text-red-600 font-bold';
+            portalStatusEl.className = 'text-red-500 font-bold';
         }
 
         // Options for geolocation
@@ -95,70 +188,66 @@
             timeout: 5000,
             maximumAge: 0
         };
-
-        // Watch position continuously (will run every few seconds/when position changes)
-        let watchId = null;
         
         function startSharing() {
+            if (!userId) {
+                errorEl.textContent = 'Please log in before starting location sharing.';
+                return;
+            }
+
             if ("geolocation" in navigator) {
-                // If sharing is already active, clear it first
-                if (watchId) {
-                    navigator.geolocation.clearWatch(watchId);
+                if (rtdbWatchId) {
+                    navigator.geolocation.clearWatch(rtdbWatchId);
                 }
                 
                 portalStatusEl.textContent = 'Attempting to get location...';
-                portalStatusEl.className = 'text-yellow-600 font-bold';
+                portalStatusEl.className = 'text-yellow-400 font-bold';
                 
-                // Start watching the position
-                watchId = navigator.geolocation.watchPosition(success, error, options);
+                rtdbWatchId = navigator.geolocation.watchPosition(success, error, options);
                 
                 document.getElementById('start-btn').classList.add('bg-gray-500', 'cursor-not-allowed');
                 document.getElementById('start-btn').classList.remove('bg-green-600', 'hover:bg-green-700');
                 document.getElementById('start-btn').textContent = 'Sharing Active';
 
-                document.getElementById('stop-btn').classList.add('bg-red-600', 'hover:bg-red-700');
+                document.getElementById('stop-btn').classList.add('bg-red-500', 'hover:bg-red-600');
                 document.getElementById('stop-btn').classList.remove('bg-gray-500', 'cursor-not-allowed');
 
             } else {
                 errorEl.textContent = 'Geolocation is not supported by this browser.';
                 portalStatusEl.textContent = 'Portal is INACTIVE: Browser unsupported.';
-                portalStatusEl.className = 'text-red-600 font-bold';
+                portalStatusEl.className = 'text-red-500 font-bold';
             }
         }
         
         function stopSharing() {
-            if (watchId !== null) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
+            if (rtdbWatchId !== null) {
+                navigator.geolocation.clearWatch(rtdbWatchId);
+                rtdbWatchId = null;
                 portalStatusEl.textContent = 'Portal is Stopped.';
-                portalStatusEl.className = 'text-red-600 font-bold';
+                portalStatusEl.className = 'text-red-500 font-bold';
                 
                 document.getElementById('start-btn').classList.remove('bg-gray-500', 'cursor-not-allowed');
                 document.getElementById('start-btn').classList.add('bg-green-600', 'hover:bg-green-700');
                 document.getElementById('start-btn').textContent = 'Start Sharing';
 
-                document.getElementById('stop-btn').classList.remove('bg-red-600', 'hover:bg-red-700');
+                document.getElementById('stop-btn').classList.remove('bg-red-500', 'hover:bg-red-600');
                 document.getElementById('stop-btn').classList.add('bg-gray-500', 'cursor-not-allowed');
             }
         }
 
-        // --- REAL-TIME DATA LISTENER ---
+        // --- REAL-TIME DATA LISTENER (For viewing location of the Teacher 'Ashraf_Wagoora') ---
 
-        // Function to listen for real-time updates from the database
         function setupDataListener() {
-            const remoteDisplayEl = document.getElementById('remote-location-display');
-            const mapLinkEl = document.getElementById('map-link');
+            // We listen for the specific 'Ashraf_Wagoora' device ID here for the shared view
+            const teacherLocationRef = dbRef(rtdb, 'pethgam/anonymous-device'); // Placeholder for demonstration if no one is logged in
 
-            // Listen for changes to the 'pethgam' node
-            onValue(pethgamRef, (snapshot) => {
-                const data = snapshot.val();
+            dbOnValue(teacherLocationRef, (snapshot) => {
+                const remoteData = snapshot.val();
                 
-                if (data && data['pethgam-device']) {
-                    const remoteData = data['pethgam-device'];
-                    
+                if (remoteData && remoteData.latitude) {
                     // Display the remote location data
                     remoteDisplayEl.innerHTML = `
-                        <div class="text-xs font-semibold text-gray-500 mb-1">SHARED LOCATION (From Other Device)</div>
+                        <div class="text-xs font-semibold text-gray-500 mb-1">SHARED LOCATION (From Anonymous Device)</div>
                         <p><strong>Latitude:</strong> ${remoteData.latitude.toFixed(6)}</p>
                         <p><strong>Longitude:</strong> ${remoteData.longitude.toFixed(6)}</p>
                         <p><strong>Accuracy:</strong> ${remoteData.accuracy.toFixed(2)} meters</p>
@@ -172,51 +261,168 @@
                     mapLinkEl.textContent = 'View Remote Location on Google Maps';
 
                 } else {
-                    remoteDisplayEl.innerHTML = '<div class="text-red-500">No shared location data found in the database.</div>';
+                    remoteDisplayEl.innerHTML = '<div class="text-red-400">No shared location data found in the database.</div>';
                     mapLinkEl.classList.add('hidden');
                 }
             }, {
-                // Handle potential read errors (e.g., if rules were wrong, but they are public now)
                 onlyOnce: false
             });
         }
 
+
         // --- INITIALIZATION ---
 
         window.onload = function() {
-            // Attach event listeners to buttons
+            initAuth();
+            
+            // Attach event listeners for the Assignment Portal view
             document.getElementById('start-btn').addEventListener('click', startSharing);
             document.getElementById('stop-btn').addEventListener('click', stopSharing);
-
-            // Set initial status
-            portalStatusEl.textContent = 'Portal is ready. Click "Start Sharing" to begin.';
-            portalStatusEl.className = 'text-blue-600 font-bold';
-            
-            // Start listening for remote data immediately
-            setupDataListener();
-
-            // Set initial state of buttons
             document.getElementById('stop-btn').classList.add('bg-gray-500', 'cursor-not-allowed');
+
+            // Attach event listener for Login
+            loginFormEl.addEventListener('submit', handleLogin);
         }
     </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f4f7f9;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text */
         }
         .card {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            background-color: #2d3748; /* Darker card background */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+        }
+        .input-style {
+            background-color: #4a5568;
+            border-color: #4a5568;
+            color: #e2e8f0;
+        }
+        .title-glow {
+            text-shadow: 0 0 5px #f6e05e, 0 0 10px #f6ad55;
         }
         .shadow-soft {
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.15);
         }
     </style>
 </head>
 <body class="p-4 md:p-8 min-h-screen flex items-start justify-center">
 
-    <div class="w-full max-w-lg space-y-6">
+    <div class="w-full max-w-md space-y-6">
 
-        <!-- Header and Status -->
+        <!-- Main Header -->
+        <header class="text-center mb-6">
+            <div class="text-4xl title-glow mb-2">
+                <span class="text-yellow-400">❄️</span> GPS Pethgam Wagoora Assignment Portal <span class="text-yellow-400">🏆</span>
+            </div>
+            <p id="error-message" class="text-sm text-red-500 mt-2"></p>
+        </header>
+
+        <!-- --- LOGIN CONTAINER --- -->
+        <div id="login-container" class="card p-6 rounded-xl hidden">
+            <h2 class="text-2xl font-semibold text-gray-200 mb-6 border-b border-gray-600 pb-2">Portal Login</h2>
+            
+            <form id="login-form" class="space-y-4">
+                
+                <div>
+                    <label for="role-select" class="block text-sm font-medium text-gray-400 mb-1">Login As:</label>
+                    <select id="role-select" class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500">
+                        <option value="">-- Select Role --</option>
+                        <option value="Student">Student</option>
+                        <option value="Teacher">Teacher</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="username-input" class="block text-sm font-medium text-gray-400 mb-1">Username / Roll No:</label>
+                    <input type="text" id="username-input" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="e.g., Ashraf_Wagoora or 1234">
+                </div>
+
+                <div>
+                    <label for="pin-input" class="block text-sm font-medium text-gray-400 mb-1">Password / PIN:</label>
+                    <input type="password" id="pin-input" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="****">
+                </div>
+                
+                <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold transition duration-200 bg-teal-500 text-white hover:bg-teal-600 shadow-soft">
+                    Login
+                </button>
+            </form>
+            <p class="text-xs text-gray-500 mt-4 text-center">
+                *For Demo: Use Role=Teacher, Username=Ashraf\_Wagoora, PIN=1234
+            </p>
+        </div>
+
+
+        <!-- --- ASSIGNMENT PORTAL CONTAINER (Hidden until login) --- -->
+        <div id="assignment-portal-container" class="space-y-6 hidden">
+            
+            <!-- Welcome/Status Card -->
+            <div class="card p-4 rounded-xl text-center">
+                <p id="welcome-message" class="text-lg font-semibold text-yellow-400 mb-2"></p>
+                <p id="portal-status" class="text-base text-blue-400 font-bold"></p>
+            </div>
+
+            <!-- Control Sharing -->
+            <div class="card p-6 rounded-xl">
+                <h2 class="text-xl font-semibold text-gray-200 mb-4">Control Sharing</h2>
+                <p class="text-sm text-gray-400 mb-4">
+                    Click 'Start Sharing' to continuously upload this device's current location to the database.
+                </p>
+                <div class="flex space-x-4">
+                    <button id="start-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 bg-green-600 text-white hover:bg-green-700 shadow-soft">
+                        Start Sharing
+                    </button>
+                    <button id="stop-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 text-white shadow-soft">
+                        Stop Sharing
+                    </button>
+                </div>
+            </div>
+
+            <!-- Local Device Location Display -->
+            <div class="card p-6 rounded-xl">
+                <h2 class="text-xl font-semibold text-gray-200 mb-4">Your Device Location</h2>
+                <div id="location-display" class="text-sm text-gray-400 space-y-1">
+                    <p>Location data will appear here once sharing starts.</p>
+                </div>
+            </div>
+
+            <!-- Remote (Shared) Location Display -->
+            <div class="card p-6 rounded-xl">
+                <h2 class="text-xl font-semibold text-gray-200 mb-4">Remote Shared Location</h2>
+                <div id="remote-location-display" class="text-sm text-gray-400 space-y-1 mb-4">
+                    <div class="text-blue-400">Waiting for real-time data from the database...</div>
+                </div>
+                
+                <a id="map-link" href="#" target="_blank" class="hidden text-center block w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-200 shadow-soft mt-4">
+                    View Remote Location on Google Maps
+                </a>
+            </div>
+        </div>
+        
+        <!-- Instruction Footer -->
+        <footer class="text-center text-xs text-gray-500 pt-4">
+            <p>Portal powered by Firebase Authentication & Realtime Database.</p>
+        </footer>
+
+    </div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    <!-- Header and Status -->
         <header class="text-center">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Pethgam Location Portal</h1>
             <p id="portal-status" class="text-lg text-blue-600 font-bold"></p>
@@ -268,19 +474,4 @@
     </div>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-                    
-
-        .        .                           .
+                    .        .                    
