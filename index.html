@@ -895,7 +895,7 @@ function getAdminStats() {
             mcqs.push(newMCQ);
             saveData(STORAGE_KEYS.MCQS, mcqs);
 
-            document.getElementById('upload-message').style.color = var['--color-success'];
+            document.getElementById('upload-message').style.color = 'var(--color-success)'; 
             document.getElementById('upload-message').textContent = `MCQ for Class ${mcqClass} (${subject}) uploaded successfully!`;
             document.getElementById('form-upload-mcq').reset();
             renderTeacherMCQList(teacher.username);
