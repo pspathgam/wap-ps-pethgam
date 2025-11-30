@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pethgam Wagoora Assignment Portal</title>
+    <style>
+        /* ------------------------------------- */
+        /* 1. Global & Utility Styles (Vibrant & Clean) */
+        /* ------------------------------------- */
+        :root {
+            --color-blue: #00bcd4; /* Teal/Cyan Primary */
+            --color-gold: #ffc107; /* Gold Accent */
+            --color-error: #ff5252;
+            --color-success: #4caf50;
+            --color-bg-dark: #121212;
+            --color-bg-light: #f4f4f4;
+            --color-card-bg: rgba(255, 255, 255, 0.08); /* Glass effect base */
+            --color-text-light: #e0e0e0;
+            --color-text-dark: #333;
+            --shadow-soft: 0 4px 15px rgba(0, 0, 0, 0.2);
+            --shadow-neon: 0 0 10px var(--color-blue);
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Base Styling */
+        body {
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, var(--color-bg-dark), #2c3e50);
+            color: var(--color-text-light);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 20px;
+            overflow-y: auto;
+        }
+
+        /* Container for Centering */
+        #app-container {
+            width: 100%;
+            max-width: 900px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Main Card/Panel Styles (Glassmorphism) */
+        .panel, .card {
+            background: var(--color-card-bg);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: var(--shadow-soft), var(--shadow-neon);
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .panel:hover, .card:hover {
+            box-shadow: var(--shadow-soft), 0 0 15px var(--color-blue);
+        }
+
+        /* Headings */
+        h1, h2, h3 {
+            color: var(--color-gold);
+            text-shadow: 0 0 5px rgba(255, 193, 7, 0.7);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* ------------------------------------- */
+        /* 2. Form & Input Styles */
+        /* ------------------------------------- */
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--color-text-light);
+        }
+
+        input[type="text"], input[type="password"], input[type="number"], select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            box-sizing: border-box;
+            border: none;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--color-text-light);
+            font-size: 16px;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            background: rgba(0, 0, 0, 0.5);
+            outline: none;
+            box-shadow: 0 0 8px var(--color-blue);
+        }
+
+        /* Buttons (Vibrant & Animated) */
+        button, .btn {
+            background: var(--color-blue);
+            color: var(--color-text-dark);
+            border: none;
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s, transform 0.1s, box-shadow 0.3s;
+            box-shadow: var(--shadow-soft);
+            text-align: center;
+        }
+
+        button:hover, .btn:hover {
+            background: var(--color-gold);
+            color: var(--color-text-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4);
+        }
+
+        .btn-logout {
+            background: var(--color-error);
+            color: white;
+            padding: 8px 15px;
+        }
+
+        .btn-logout:hover {
+            background: #d32f2f;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        /* ------------------------------------- */
+        /* 3. Data Presentation (Tables, Lists, Alerts) */
+        /* ------------------------------------- */
+        .data-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .data-grid th, .data-grid td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .data-grid th {
+            background: rgba(0, 188, 212, 0.3); /* Teal Header */
+            font-weight: bold;
+            color: white;
+        }
+
+        .data-grid tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .alert {
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            text-align: center;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+
+        .alert-success { background-color: var(--color-success); color: white; }
+        .alert-error { background-color: var(--color-error); color: white; }
+
+        /* Dashboard Stats Boxes */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: rgba(255, 193, 7, 0.1); /* Gold tint */
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            border-left: 5px solid var(--color-gold);
+        }
+
+        .stat-box h4 { margin: 0; font-size: 1em; color: var(--color-gold); }
+        .stat-box p { margin: 5px 0 0 0; font-size: 2em; font-weight: bold; color: var(--color-blue); }
+
+        /* ------------------------------------- */
+        /* 4. MCQ Specific Styles */
+        /* ------------------------------------- */
+
+        .mcq-container {
+            margin-top: 20px;
+        }
+
+        .mcq-item {
+            border: 1px solid rgba(0, 188, 212, 0.3);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .mcq-question {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: var(--color-text-light);
+        }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--color-text-light);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .option-btn:hover {
+            background: rgba(0, 188, 212, 0.3);
+            border-color: var(--color-blue);
+        }
+
+        .option-btn.selected {
+            background: var(--color-blue);
+            color: var(--color-text-dark);
+            border-color: var(--color-blue);
+            box-shadow: 0 0 10px var(--color-blue);
+        }
+
+        /* Answer feedback */
+        .feedback {
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .feedback.correct { background-color: rgba(76, 175, 80, 0.3); color: var(--color-success); }
+        .feedback.wrong { background-color: rgba(255, 82, 82, 0.3); color: var(--color-error); }
+
+        /* ------------------------------------- */
+        /* 5. Mobile Responsiveness */
+        /* ------------------------------------- */
+        @media (max-width: 600px) {
+            body { padding-top: 10px; }
+            #app-container { padding: 10px; }
+            .panel, .card { padding: 15px; border-radius: 10px; }
+            h1 { font-size: 1.5em; }
+            .data-grid th, .data-grid td { padding: 8px; font-size: 0.9em; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .btn-group { flex-direction: column; gap: 5px; }
+            button, .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <header>
+        <h1>Pethgam Wagoora Winter Assignment Portal</h1>
+    </header>
+
+    <main id="portal-content">
+        </main>
+
+</div>
+
+<script>
+    // -------------------------------------
+    // 💾 1. LOCAL STORAGE & DATA INITIALIZATION
+    // -------------------------------------
+
+    const STORAGE_KEYS = {
+        LOGGED_USER: 'assignmentPortalUser',
+        TEACHERS: 'assignmentPortalTeachers',
+        STUDENTS: 'assignmentPortalStudents',
+        MCQS: 'assignmentPortalMCQs',
+        ATTEMPTS: 'assignmentPortalAttempts'
+    };
+
+    const ADMIN_CREDENTIALS = {
+        username: 'admin',
+        password: 'admin123'
+    };
+
+    const SUBJECTS = ["Math", "English", "EVS", "Urdu", "Kashmiri", "Science", "History"];
+
+    // Helper to get data from localStorage or return default array
+    function getData(key, defaultValue = []) {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : defaultValue;
+    }
+
+    // Helper to save data to localStorage
+    function saveData(key, data) {
+        localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    // Initialize data if not present (only run once)
+    function initializeData() {
+        if (!localStorage.getItem(STORAGE_KEYS.STUDENTS)) {
+            // Sample Students
+            const initialStudents = [
+                { name: "Aariz Lone", class: "5", rollNo: 101, pin: "1234", totalPoints: 15, points: { "Math": 10, "English": 5 } },
+                { name: "Zoya Jan", class: "5", rollNo: 102, pin: "4321", totalPoints: 5, points: { "Math": 5, "English": 0 } },
+                { name: "Irfan Mir", class: "3", rollNo: 51, pin: "1111", totalPoints: 20, points: { "EVS": 20 } },
+            ];
+            saveData(STORAGE_KEYS.STUDENTS, initialStudents);
+        }
+
+        if (!localStorage.getItem(STORAGE_KEYS.TEACHERS)) {
+            // Sample Teachers
+            const initialTeachers = [
+                { name: "Ms. Shaista", username: "shaista", password: "pass123" },
+                { name: "Mr. Iqbal", username: "iqbal", password: "pass456" }
+            ];
+            saveData(STORAGE_KEYS.TEACHERS, initialTeachers);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pethgam Wagoora Assignment Portal</title>
+    <style>
+        /* ------------------------------------- */
+        /* 1. Global & Utility Styles (Vibrant & Clean) */
+        /* ------------------------------------- */
+        :root {
+            --color-blue: #00bcd4; /* Teal/Cyan Primary */
+            --color-gold: #ffc107; /* Gold Accent */
+            --color-error: #ff5252;
+            --color-success: #4caf50;
+            --color-bg-dark: #121212;
+            --color-bg-light: #f4f4f4;
+            --color-card-bg: rgba(255, 255, 255, 0.08); /* Glass effect base */
+            --color-text-light: #e0e0e0;
+            --color-text-dark: #333;
+            --shadow-soft: 0 4px 15px rgba(0, 0, 0, 0.2);
+            --shadow-neon: 0 0 10px var(--color-blue);
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Base Styling */
+        body {
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, var(--color-bg-dark), #2c3e50);
+            color: var(--color-text-light);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 20px;
+            overflow-y: auto;
+        }
+
+        /* Container for Centering */
+        #app-container {
+            width: 100%;
+            max-width: 900px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Main Card/Panel Styles (Glassmorphism) */
+        .panel, .card {
+            background: var(--color-card-bg);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: var(--shadow-soft), var(--shadow-neon);
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .panel:hover, .card:hover {
+            box-shadow: var(--shadow-soft), 0 0 15px var(--color-blue);
+        }
+
+        /* Headings */
+        h1, h2, h3 {
+            color: var(--color-gold);
+            text-shadow: 0 0 5px rgba(255, 193, 7, 0.7);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* ------------------------------------- */
+        /* 2. Form & Input Styles */
+        /* ------------------------------------- */
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--color-text-light);
+        }
+
+        input[type="text"], input[type="password"], input[type="number"], select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            box-sizing: border-box;
+            border: none;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--color-text-light);
+            font-size: 16px;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            background: rgba(0, 0, 0, 0.5);
+            outline: none;
+            box-shadow: 0 0 8px var(--color-blue);
+        }
+
+        /* Buttons (Vibrant & Animated) */
+        button, .btn {
+            background: var(--color-blue);
+            color: var(--color-text-dark);
+            border: none;
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s, transform 0.1s, box-shadow 0.3s;
+            box-shadow: var(--shadow-soft);
+            text-align: center;
+        }
+
+        button:hover, .btn:hover {
+            background: var(--color-gold);
+            color: var(--color-text-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4);
+        }
+
+        .btn-logout {
+            background: var(--color-error);
+            color: white;
+            padding: 8px 15px;
+        }
+
+        .btn-logout:hover {
+            background: #d32f2f;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        /* ------------------------------------- */
+        /* 3. Data Presentation (Tables, Lists, Alerts) */
+        /* ------------------------------------- */
+        .data-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .data-grid th, .data-grid td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .data-grid th {
+            background: rgba(0, 188, 212, 0.3); /* Teal Header */
+            font-weight: bold;
+            color: white;
+        }
+
+        .data-grid tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .alert {
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            text-align: center;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+
+        .alert-success { background-color: var(--color-success); color: white; }
+        .alert-error { background-color: var(--color-error); color: white; }
+
+        /* Dashboard Stats Boxes */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: rgba(255, 193, 7, 0.1); /* Gold tint */
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            border-left: 5px solid var(--color-gold);
+        }
+
+        .stat-box h4 { margin: 0; font-size: 1em; color: var(--color-gold); }
+        .stat-box p { margin: 5px 0 0 0; font-size: 2em; font-weight: bold; color: var(--color-blue); }
+
+        /* ------------------------------------- */
+        /* 4. MCQ Specific Styles */
+        /* ------------------------------------- */
+
+        .mcq-container {
+            margin-top: 20px;
+        }
+
+        .mcq-item {
+            border: 1px solid rgba(0, 188, 212, 0.3);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .mcq-question {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: var(--color-text-light);
+        }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--color-text-light);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .option-btn:hover {
+            background: rgba(0, 188, 212, 0.3);
+            border-color: var(--color-blue);
+        }
+
+        .option-btn.selected {
+            background: var(--color-blue);
+            color: var(--color-text-dark);
+            border-color: var(--color-blue);
+            box-shadow: 0 0 10px var(--color-blue);
+        }
+
+        /* Answer feedback */
+        .feedback {
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .feedback.correct { background-color: rgba(76, 175, 80, 0.3); color: var(--color-success); }
+        .feedback.wrong { background-color: rgba(255, 82, 82, 0.3); color: var(--color-error); }
+
+        /* ------------------------------------- */
+        /* 5. Mobile Responsiveness */
+        /* ------------------------------------- */
+        @media (max-width: 600px) {
+            body { padding-top: 10px; }
+            #app-container { padding: 10px; }
+            .panel, .card { padding: 15px; border-radius: 10px; }
+            h1 { font-size: 1.5em; }
+            .data-grid th, .data-grid td { padding: 8px; font-size: 0.9em; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .btn-group { flex-direction: column; gap: 5px; }
+            button, .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <header>
+        <h1>Pethgam Wagoora Winter Assignment Portal</h1>
+    </header>
+
+    <main id="portal-content">
+        </main>
+
+</div>
+
+<script>
+    // -------------------------------------
+    // 💾 1. LOCAL STORAGE & DATA INITIALIZATION
+    // -------------------------------------
+
+    const STORAGE_KEYS = {
+        LOGGED_USER: 'assignmentPortalUser',
+        TEACHERS: 'assignmentPortalTeachers',
+        STUDENTS: 'assignmentPortalStudents',
+        MCQS: 'assignmentPortalMCQs',
+        ATTEMPTS: 'assignmentPortalAttempts'
+    };
+
+    const ADMIN_CREDENTIALS = {
+        username: 'admin',
+        password: 'admin123'
+    };
+
+    const SUBJECTS = ["Math", "English", "EVS", "Urdu", "Kashmiri", "Science", "History"];
+
+    // Helper to get data from localStorage or return default array
+    function getData(key, defaultValue = []) {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : defaultValue;
+    }
+
+    // Helper to save data to localStorage
+    function saveData(key, data) {
+        localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    // Initialize data if not present (only run once)
+    function initializeData() {
+        if (!localStorage.getItem(STORAGE_KEYS.STUDENTS)) {
+            // Sample Students
+            const initialStudents = [
+                { name: "Aariz Lone", class: "5", rollNo: 101, pin: "1234", totalPoints: 15, points: { "Math": 10, "English": 5 } },
+                { name: "Zoya Jan", class: "5", rollNo: 102, pin: "4321", totalPoints: 5, points: { "Math": 5, "English": 0 } },
+                { name: "Irfan Mir", class: "3", rollNo: 51, pin: "1111", totalPoints: 20, points: { "EVS": 20 } },
+            ];
+            saveData(STORAGE_KEYS.STUDENTS, initialStudents);
+        }
+
+        if (!localStorage.getItem(STORAGE_KEYS.TEACHERS)) {
+            // Sample Teachers
+            const initialTeachers = [
+                { name: "Ms. Shaista", username: "shaista", password: "pass123" },
+                { name: "Mr. Iqbal", username: "iqbal", password: "pass456" }
+            ];
+            saveData(STORAGE_KEYS.TEACHERS, initialTeachers);
+        }
+
+        if (!localStorage.getItem(STORAGE_KEYS.MCQS)) {
+            // Sample MCQs
+            const today = getTodayDate();
+            const initialMCQs = [
+                { id: 1, class: "5", subject: "Math", question: "What is 7 multiplied by 8?", options: { A: "49", B: "56", C: "64", D: "72" }, correct: "B", teacher: "shaista", date: today },
+                { id: 2, class: "5", subject: "English", question: "Which word means 'large'?", options: { A: "Tiny", B: "Huge", C: "Small", D: "Quiet" }, correct: "B", teacher: "iqbal", date: today },
+                { id: 3, class: "3", subject: "EVS", question: "Which is a winter vegetable?", options: { A: "Tomato", B: "Gourd", C: "Haak", D: "Mango" }, correct: "C", teacher: "shaista", date: today },
+                { id: 4, class: "5", subject: "Math", question: "What is the perimeter of a square with side 5?", options: { A: "10", B: "20", C: "25", D: "5" }, correct: "B", teacher: "iqbal", date: today },
+            ];
+            saveData(STORAGE_KEYS.MCQS, initialMCQs);
+        }
+
+        if (!localStorage.getItem(STORAGE_KEYS.ATTEMPTS)) {
+             // Attempts track who has answered which question
+             saveData(STORAGE_KEYS.ATTEMPTS, []); 
+        }
+    }
+
+    // -------------------------------------
+    // ⚙️ 2. UTILITY FUNCTIONS
+    // -------------------------------------
+
+    // Get today's date in YYYY-MM-DD format
+    function getTodayDate() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    // Display alert message
+    function showAlert(message, type = 'success', duration = 3000) {
+        const container = document.getElementById('portal-content');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.textContent = message;
+        
+        // Find existing alerts and remove them
+        document.querySelectorAll('.alert').forEach(a => a.remove());
+
+        // Insert new alert at the top of the content area
+        container.insertBefore(alertDiv, container.firstChild);
+
+        setTimeout(() => {
+            alertDiv.remove();
+        }, duration);
+    }
+
+    // Generate unique ID for MCQs
+    function generateUniqueId(data) {
+        if (data.length === 0) return 1;
+        const maxId = Math.max(...data.map(item => item.id));
+        return maxId + 1;
+    }
+
+    // -------------------------------------
+    // 🔐 3. AUTHENTICATION & ROUTING
+    // -------------------------------------
+
+    let currentUser = getData(STORAGE_KEYS.LOGGED_USER, null);
+
+    function checkAuth() {
+        currentUser = getData(STORAGE_KEYS.LOGGED_USER, null);
+        if (currentUser) {
+            renderDashboard(currentUser.role);
+        } else {
+            renderLogin();
+        }
+    }
+
+    function renderLogin() {
+        document.getElementById('portal-content').innerHTML = `
+            <div class="panel login-panel">
+                <h2>Login to Assignment Portal</h2>
+                <div class="btn-group" style="margin-bottom: 20px;">
+                    <button onclick="showLoginForm('admin')">Admin</button>
+                    <button onclick="showLoginForm('teacher')">Teacher</button>
+                    <button onclick="showLoginForm('student')">Student</button>
+                </div>
+
+                <div id="login-form-container">
+                    <p style="text-align: center;">Select your role to proceed.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function showLoginForm(role) {
+        const container = document.getElementById('login-form-container');
+        let formHTML = '';
+
+        if (role === 'student') {
+            formHTML = `
+                <h3 style="color: var(--color-blue);">Student Login</h3>
+                <input type="text" id="login-name" placeholder="Name" required>
+                <input type="number" id="login-pin" placeholder="4-digit PIN" required maxlength="4" pattern="[0-9]{4}">
+                <button onclick="handleLogin('student')">Login as Student</button>
+            `;
+        } else {
+            formHTML = `
+                <h3 style="color: var(--color-blue);">${role.charAt(0).toUpperCase() + role.slice(1)} Login</h3>
+                <input type="text" id="login-username" placeholder="Username" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button onclick="handleLogin('${role}')">Login as ${role.charAt(0).toUpperCase() + role.slice(1)}</button>
+            `;
+        }
+        container.innerHTML = formHTML;
+    }
+
+    function handleLogin(role) {
+        if (role === 'admin') {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+                currentUser = { username, role: 'admin' };
+                saveData(STORAGE_KEYS.LOGGED_USER, currentUser);
+                renderDashboard('admin');
+            } else {
+                showAlert('Invalid Admin Credentials!', 'error');
+            }
+        } else if (role === 'teacher') {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const teachers = getData(STORAGE_KEYS.TEACHERS);
+            const teacher = teachers.find(t => t.username === username && t.password === password);
+
+            if (teacher) {
+                currentUser = { username: teacher.username, name: teacher.name, role: 'teacher' };
+                saveData(STORAGE_KEYS.LOGGED_USER, currentUser);
+                renderDashboard('teacher');
+            } else {
+                showAlert('Invalid Teacher Credentials!', 'error');
+            }
+        } else if (role === 'student') {
+            const name = document.getElementById('login-name').value;
+            const pin = document.getElementById('login-pin').value;
+            const students = getData(STORAGE_KEYS.STUDENTS);
+            const student = students.find(s => s.name.toLowerCase() === name.toLowerCase() && s.pin === pin);
+
+            if (student) {
+                currentUser = { name: student.name, class: student.class, rollNo: student.rollNo, role: 'student' };
+                saveData(STORAGE_KEYS.LOGGED_USER, currentUser);
+                renderDashboard('student');
+            } else {
+                showAlert('Invalid Student Name or PIN!', 'error');
+            }
+        }
+    }
+
+    function logout() {
+        saveData(STORAGE_KEYS.LOGGED_USER, null);
+        currentUser = null;
+        renderLogin();
+        showAlert('Logged out successfully!', 'success');
+    }
+
+    // -------------------------------------
+    // 🖼️ 4. DASHBOARD RENDERING
+    // -------------------------------------
+
+    function renderDashboard(role) {
+        let title = '';
+        let content = '';
+
+        if (role === 'admin') {
+            title = 'Master Admin Panel 👑';
+            content = renderAdminPanel();
+        } else if (role === 'teacher') {
+            title = `Teacher Dashboard - Welcome, ${currentUser.name} 📚`;
+            content = renderTeacherDashboard();
+        } else if (role === 'student') {
+            title = `Student Portal - Class ${currentUser.class} 🎓`;
+            content = renderStudentPanel();
+        }
+
+        document.getElementById('portal-content').innerHTML = `
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>${title}</h2>
+                    <button class="btn-logout" onclick="logout()">Logout</button>
+                </div>
+                ${content}
+            </div>
+        `;
+    }
+
+    // -------------------------------------
+    // 👑 5. ADMIN PANEL LOGIC
+    // -------------------------------------
+
+    function renderAdminPanel() {
+        return `
+            <div class="btn-group" style="margin-bottom: 20px;">
+                <button onclick="renderAdminSection('stats')">Statistics</button>
+                <button onclick="renderAdminSection('manageTeachers')">Manage Teachers</button>
+                <button onclick="renderAdminSection('manageStudents')">Manage Students</button>
+                <button onclick="renderAdminSection('leaderboards')">Leaderboards</button>
+            </div>
+            <div id="admin-section-content">
+                ${renderAdminStats()}
+            </div>
+        `;
+    }
+
+    function renderAdminSection(section) {
+        const contentDiv = document.getElementById('admin-section-content');
+        if (section === 'stats') contentDiv.innerHTML = renderAdminStats();
+        if (section === 'manageTeachers') contentDiv.innerHTML = renderManageTeachers();
+        if (section === 'manageStudents') contentDiv.innerHTML = renderManageStudents();
+        if (section === 'leaderboards') contentDiv.innerHTML = renderLeaderboards();
+    }
+
+    function re        }
+
+        if (!localStorage.getItem(STORAGE_KEYS.MCQS)) {
+            // Sample MCQs
+            const today = getTodayDate();
+            const initialMCQs = [
+                { id: 1, class: "5", subject: "Math", question: "What is 7 multiplied by 8?", options: { A: "49", B: "56", C: "64", D: "72" }, correct: "B", teacher: "shaista", date: today },
+                { id: 2, class: "5", subject: "English", question: "Which word means 'large'?", options: { A: "Tiny", B: "Huge", C: "Small", D: "Quiet" }, correct: "B", teacher: "iqbal", date: today },
+                { id: 3, class: "3", subject: "EVS", question: "Which is a winter vegetable?", options: { A: "Tomato", B: "Gourd", C: "Haak", D: "Mango" }, correct: "C", teacher: "shaista", date: today },
+                { id: 4, class: "5", subject: "Math", question: "What is the perimeter of a square with side 5?", options: { A: "10", B: "20", C: "25", D: "5" }, correct: "B", teacher: "iqbal", date: today },
+            ];
+            saveData(STORAGE_KEYS.MCQS, initialMCQs);
+        }
+
+        if (!localStorage.getItem(STORAGE_KEYS.ATTEMPTS)) {
+             // Attempts track who has answered which question
+             saveData(STORAGE_KEYS.ATTEMPTS, []); 
+        }
+    }
+
+    // -------------------------------------
+    // ⚙️ 2. UTILITY FUNCTIONS
+    // -------------------------------------
+
+    // Get today's date in YYYY-MM-DD format
+    function getTodayDate() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    // Display alert message
+    function showAlert(message, type = 'success', duration = 3000) {
+        const container = document.getElementById('portal-content');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.textContent = message;
+        
+        // Find existing alerts and remove them
+        document.querySelectorAll('.alert').forEach(a => a.remove());
+
+        // Insert new alert at the top of the content area
+        container.insertBefore(alertDiv, container.firstChild);
+
+        setTimeout(() => {
+            alertDiv.remove();
+        }, duration);
+    }
+
+    // Generate unique ID for MCQs
+    function generateUniqueId(data) {
+        if (data.length === 0) return 1;
+        const maxId = Math.max(...data.map(item => item.id));
+        return maxId + 1;
+    }
+
+    // -------------------------------------
+    // 🔐 3. AUTHENTICATION & ROUTING
+    // -------------------------------------
+
+    let currentUser = getData(STORAGE_KEYS.LOGGED_USER, null);
+
+    function checkAuth() {
+        currentUser = getData(STORAGE_KEYS.LOGGED_USER, null);
+        if (currentUser) {
+            renderDashboard(currentUser.role);
+        } else {
+            renderLogin();
+        }
+    }
+
+    function renderLogin() {
+        document.getElementById('portal-content').innerHTML = `
+            <div class="panel login-panel">
+                <h2>Login to Assignment Portal</h2>
+                <div class="btn-group" style="margin-bottom: 20px;">
+                    <button onclick="showLoginForm('admin')">Admin</button>
+                    <button onclick="showLoginForm('teacher')">Teacher</button>
+                    <button onclick="showLoginForm('student')">Student</button>
+                </div>
+
+                <div id="login-form-container">
+                    <p style="text-align: center;">Select your role to proceed.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function showLoginForm(role) {
+        const container = document.getElementById('login-form-container');
+        let formHTML = '';
+
+        if (role === 'student') {
+            formHTML = `
+                <h3 style="color: var(--color-blue);">Student Login</h3>
+                <input type="text" id="login-name" placeholder="Name" required>
+                <input type="number" id="login-pin" placeholder="4-digit PIN" required maxlength="4" pattern="[0-9]{4}">
+                <button onclick="handleLogin('student')">Login as Student</button>
+            `;
+        } else {
+            formHTML = `
+                <h3 style="color: var(--color-blue);">${role.charAt(0).toUpperCase() + role.slice(1)} Login</h3>
+                <input type="text" id="login-username" placeholder="Username" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button onclick="handleLogin('${role}')">Login as ${role.charAt(0).toUpperCase() + role.slice(1)}</button>
+            `;
+        }
+        container.innerHTML = formHTML;
+      }
+
+    function handleLogin(role) {
+        if (role === 'admin') {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+                currentUser = { username, role: 'admin' };
+                saveData(STORAGE_KEYS.LOGGED_USER, currentUser);
+                renderDashboard('admin');
+            } else {
+                showAlert('Invalid Admin Credentials!', 'error');
+            }
+        } else if (role === 'teacher') {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const teachers = getData(STORAGE_KEYS.TEACHERS);
+            const teacher = teachers.find(t => t.username === username && t.password === password);
+
+            if (teacher) {
+                currentUser = { username: teacher.username, name: teacher.name, role: 'teacher' };
+                saveData(STORAGE_KEYS.LOGGED_USER, currentUser);
+                renderDashboard('teacher');
+            } else {
+                showAlert('Invalid Teacher Credentials!', 'error');
+            }
+        } else if (role === 'student') {
+            const name = document.getElementById('login-name').value;
+            const pin = document.getElementById('login-pin').value;
+            const students = getData(STORAGE_KEYS.STUDENTS);
+            const student = students.find(s => s.name.toLowerCase() === name.toLowerCase() && s.pin === pin);
+
+            if (student) {
+                currentUser = { name: student.name, class: student.class, rollNo: student.rollNo, role: 'student' };
+                saveData(STORAGE_KEYS.LOGGED_USER, currentUser);
+                renderDashboard('student');
+            } else {
+                showAlert('Invalid Student Name or PIN!', 'error');
+            }
+        }
+    }
+
+    function logout() {
+        saveData(STORAGE_KEYS.LOGGED_USER, null);
+        currentUser = null;
+        renderLogin();
+        showAlert('Logged out successfully!', 'success');
+    }
+
+    // -------------------------------------
+    // 🖼️ 4. DASHBOARD RENDERING
+    // -------------------------------------
+
+    function renderDashboard(role) {
+        let title = '';
+        let content = '';
+
+        if (role === 'admin') {
+            title = 'Master Admin Panel 👑';
+            content = renderAdminPanel();
+        } else if (role === 'teacher') {
+            title = `Teacher Dashboard - Welcome, ${currentUser.name} 📚`;
+            content = renderTeacherDashboard();
+        } else if (role === 'student') {
+            title = `Student Portal - Class ${currentUser.class} 🎓`;
+            content = renderStudentPanel();
+        }
+
+        document.getElementById('portal-content').innerHTML = `
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>${title}</h2>
+                    <button class="btn-logout" onclick="logout()">Logout</button>
+                </div>
+                ${content}
+            </div>
+        `;
+    }
+
+    // -------------------------------------
+    // 👑 5. ADMIN PANEL LOGIC
+    // -------------------------------------
+
+    function renderAdminPanel() {
+        return `
+            <div class="btn-group" style="margin-bottom: 20px;">
+                <button onclick="renderAdminSection('stats')">Statistics</button>
+                <button onclick="renderAdminSection('manageTeachers')">Manage Teachers</button>
+                <button onclick="renderAdminSection('manageStudents')">Manage Students</button>
+                <button onclick="renderAdminSection('leaderboards')">Leaderboards</button>
+            </div>
+            <div id="admin-section-content">
+                ${renderAdminStats()}
+            </div>
+        `;
+    }
+
+    function renderAdminSection(section) {
+        const contentDiv = document.getElementById('admin-section-content');
+        if (section === 'stats') contentDiv.innerHTML = renderAdminStats();
+        if (section === 'manageTeachers') contentDiv.innerHTML = renderManageTeachers();
+        if (section === 'manageStudents') contentDiv.innerHTML = renderManageStudents();
+        if (section === 'leaderboards') contentDiv.innerHTML = renderLeaderboards();
+    }
+
+    function renderAdminStats() {
+        const students = getData(STORAGE_KEYS.STUDENTS);
+        const teachers = getData(STORAGE_KEYS.TEACHERS);
+        const mcqs = getData(STORAGE_KEYS.MCQS);
+        const attempts = getData(STORAGE_KEYS.ATTEMPTS);
+        const today = getTodayDate();
+
+        const mcqsToday = mcqs.filter(q => q.date === today).length;
+        const attemptsToday = attempts.filter(a => a.date === today).length;
+
+        return `
+            <h3>Portal Statistics 📊</h3>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <h4>Total Students</h4>
+                    <p>${students.length}</p>
+                </div>
+                <div class="stat-box">
+                    <h4>Total Teachers</h4>
+                    <p>${teachers.length}</p>
+                </div>
+                <div class="stat-box">
+                    <h4>Total MCQs</h4>
+                    <p>${mcqs.length}</p>
+                </div>
+                <div class="stat-box">
+                    <h4>Today's MCQs</h4>
+                    <p>${mcqsToday}</p>
+                </div>
+                <div class="stat-box">
+                    <h4>Total Attempts Today</h4>
+                    <p>${attemptsToday}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // --- Teacher Management ---
+    function renderManageTeachers() {
+        const teachers = getData(STORAGE_KEYS.TEACHERS);
+        return `
+            <h3>Manage Teachers</h3>
+            <div class="card">
+                <h4>➕ Add New Teacher</h4>
+                <input type="text" id="t-name" placeholder="Name" required>
+                <input type="text" id="t-username" placeholder="Username (Unique)" required>
+                <input type="password" id="t-password" placeholder="Password" required>
+                <button onclick="addTeacher()">Add Teacher</button>
+            </div>
+
+            <div class="card">
+                <h4>➖ Existing Teachers</h4>
+                <table class="data-grid">
+                    <thead><tr><th>Name</th><th>Username</th><th>Action</th></tr></thead>
+                    <tbody>
+                        ${teachers.map(t => `
+                            <tr>
+                                <td>${t.name}</td>
+                                <td>${t.username}</td>
+                                <td><button class="btn-logout" onclick="removeTeacher('${t.username}')">Remove</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function addTeacher() {
+        const name = document.getElementById('t-name').value;
+        const username = document.getElementById('t-username').value;
+        const password = document.getElementById('t-password').value;
+
+        if (!name || !username || !password) { showAlert('All fields are required.', 'error'); return; }
+
+        let teachers = getData(STORAGE_KEYS.TEACHERS);
+        if (teachers.find(t => t.username === username)) { showAlert('Username already exists.', 'error'); return; }
+
+        teachers.push({ name, username, password });
+        saveData(STORAGE_KEYS.TEACHERS, teachers);
+        showAlert(`Teacher ${name} added successfully!`, 'success');
+        renderAdminSection('manageTeachers');
+    }
+
+    function removeTeacher(username) {
+        if (!confirm('Are you sure you want to remove this teacher?')) return;
+        let teachers = getData(STORAGE_KEYS.TEACHERS);
+        teachers = teachers.filter(t => t.username !== username);
+        saveData(STORAGE_KEYS.TEACHERS, teachers);
+        showAlert(`Teacher ${username} removed.`, 'success');
+        renderAdminSection('manageTeachers');
+    }
+
+    // --- Student Management ---
+    function renderManageStudents() {
+        const students = getData(STORAGE_KEYS.STUDENTS);
+        return `
+            <h3>Manage Students</h3>
+            <div class="card">
+                <h4>➕ Add New Student</h4>
+                <input type="text" id="s-name" placeholder="Name" required>
+                <select id="s-class" required>
+                    <option value="">Select Class</option>
+                    ${[1, 2, 3, 4, 5].map(c => `<option value="${c}">Class ${c}</option>`).join('')}
+                </select>
+                <input type="number" id="s-rollno" placeholder="Roll No" required>
+                <input type="number" id="s-pin" placeholder="4-digit PIN" required maxlength="4" pattern="[0-9]{4}">
+                <button onclick="addStudent()">Add Student</button>
+            </div>
+
+            <div class="card">
+                <h4>➖ Existing Students</h4>
+                <table class="data-grid">
+                    <thead><tr><th>Name</th><th>Class</th><th>Roll No</th><th>PIN</th><th>Action</th></tr></thead>
+                    <tbody>
+                        ${students.map(s => `
+                            <tr>
+                                <td>${s.name}</td>
+                                <td>${s.class}</td>
+                                <td>${s.rollNo}</td>
+                                <td>${s.pin}</td>
+                                <td><button class="btn-logout" onclick="removeStudent('${s.rollNo}', '${s.class}')">Remove</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function addStudent() {
+        const name = document.getElementById('s-name').value;
+        const sClass = document.getElementById('s-class').value;
+        const rollNo = document.getElementById('s-rollno').value;
+        const pin = document.getElementById('s-pin').value;
+
+        if (!name || !sClass || !rollNo || !pin) { showAlert('All fields are required.', 'error'); return; }
+        if (pin.length !== 4) { showAlert('PIN must be 4 digits.', 'error'); return; }
+
+        let students = getData(STORAGE_KEYS.STUDENTS);
+        if (students.find(s => s.rollNo == rollNo && s.class == sClass)) { showAlert(`Roll No ${rollNo} in Class ${sClass} already exists.`, 'error'); return; }
+
+        students.push({ name, class: sClass, rollNo: parseInt(rollNo), pin, totalPoints: 0, points: {} });
+        saveData(STORAGE_KEYS.STUDENTS, students);
+        showAlert(`Student ${name} (C-${sClass}) added successfully!`, 'success');
+        renderAdminSection('manageStudents');
+    }
+
+    function removeStudent(rollNo, sClass) {
+        if (!confirm('Are you sure you want to remove this student? All points will be lost.')) return;
+        let students = getData(STORAGE_KEYS.STUDENTS);
+        students = students.filter(s => !(s.rollNo == rollNo && s.class == sClass));
+        saveData(STORAGE_KEYS.STUDENTS, students);
+        showAlert(`Student C-${sClass}/R-${rollNo} removed.`, 'success');
+        renderAdminSection('manageStudents');
+    }
+
+    // -------------------------------------
+    // 📝 6. TEACHER DASHBOARD LOGIC
+    // -------------------------------------
+
+    function renderTeacherDashboard() {
+        return `
+            <div class="btn-group" style="margin-bottom: 20px;">
+                <button onclick="renderTeacherSection('upload')">Upload New MCQ</button>
+                <button onclick="renderTeacherSection('view')">View My MCQs</button>
+            </div>
+            <div id="teacher-section-content">
+                ${renderTeacherUploadForm()}
+            </div>
+        `;
+    }
+
+    function renderTeacherSection(section) {
+        const contentDiv = document.getElementById('teacher-section-content');
+        if (section === 'upload') contentDiv.innerHTML = renderTeacherUploadForm();
+        if (section === 'view') contentDiv.innerHTML = renderTeacherMCQs();
+    }
+
+    function renderTeacherUploadForm() {
+        return `
+            <h3>Upload New Daily Assignment (MCQ)</h3>
+            <div class="card">
+                <select id="mcq-class" required>
+                    <option value="">Select Class</option>
+                    ${[1, 2, 3, 4, 5].map(c => `<option value="${c}">Class ${c}</option>`).join('')}
+                </select>
+                <select id="mcq-subject" required>
+                    <option value="">Select Subject</option>
+                    ${SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('')}
+                </select>
+                <textarea id="mcq-question" placeholder="Question Text" rows="3" required></textarea>
+                <input type="text" id="mcq-optA" placeholder="Option A" required>
+                <input type="text" id="mcq-optB" placeholder="Option B" required>
+                <input type="text" id="mcq-optC" placeholder="Option C" required>
+                <input type="text" id="mcq-optD" placeholder="Option D" required>
+                <select id="mcq-correct" required>
+                    <option value="">Correct Answer</option>
+                    <option value="A">A</option><option value="B">B</option>
+                    <option value="C">C</option><option value="D">D</option>
+                </select>
+                <button onclick="uploadMCQ()">Upload MCQ</button>
+            </div>
+        `;
+    }
+
+    function uploadMCQ() {
+        const sClass = document.getElementById('mcq-class').value;
+        const subject = document.getElementById('mcq-subject').value;
+        const question = document.getElementById('mcq-question').value;
+        const optA = document.getElementById('mcq-optA').value;
+        const optB = document.getElementById('mcq-optB').value;
+        const optC = document.getElementById('mcq-optC').value;
+        const optD = document.getElementById('mcq-optD').value;
+        const correct = document.getElementById('mcq-correct').value;
+
+        if (!sClass || !subject || !question || !optA || !optB || !optC || !optD || !correct) {
+            showAlert('All fields must be filled.', 'error'); return;
+        }
+
+        let mcqs = getData(STORAGE_KEYS.MCQS);
+        const newMCQ = {
+            id: generateUniqueId(mcqs),
+            class: sClass,
+            subject: subject,
+            question: question,
+            options: { A: optA, B: optB, C: optC, D: optD },
+            correct: correct,
+            teacher: currentUser.username,
+            date: getTodayDate()
+        };
+
+        mcqs.push(newMCQ);
+        saveData(STORAGE_KEYS.MCQS, mcqs);
+        showAlert('MCQ uploaded successfully! 🎉', 'success');
+
+        // Clear form
+        document.getElementById('mcq-question').value = '';
+        document.getElementById('mcq-optA').value = '';
+        document.getElementById('mcq-optB').value = '';
+        document.getElementById('mcq-optC').value = '';
+        document.getElementById('mcq-optD').value = '';
+        document.getElementById('mcq-correct').value = '';
+    }
+
+    function renderTeacherMCQs() {
+        const allMCQs = getData(STORAGE_KEYS.MCQS);
+        const myMCQs = allMCQs.filter(q => q.teacher === currentUser.username);
+
+        // Group by date
+        const groupedMCQs = myMCQs.reduce((acc, mcq) => {
+            acc[mcq.date] = acc[mcq.date] || [];
+            acc[mcq.date].push(mcq);
+            return acc;
+        }, {});
+
+        const sortedDates = Object.keys(groupedMCQs).sort().reverse(); // Show most recent first
+
+        let mcqListHTML = '<h3>My Uploaded MCQs</h3>';
+        if (myMCQs.length === 0) {
+            mcqListHTML += '<p>You have not uploaded any MCQs yet.</p>';
+        } else {
+            sortedDates.forEach(date => {
+                mcqListHTML += `
+                    <div class="card" style="margin-top: 15px;">
+                        <h4>📅 MCQs from ${date} (${groupedMCQs[date].length} questions)</h4>
+                        ${groupedMCQs[date].map(mcq => `
+                            <div class="mcq-item">
+                                <p><strong>Class ${mcq.class} | ${mcq.subject}</strong></p>
+                                <p class="mcq-question">${mcq.question}</p>
+                                <p style="color: var(--color-success); font-weight: bold;">Correct: Option ${mcq.correct}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            });
+        }
+        return mcqListHTML;
+    }
+      // -------------------------------------
+    // 🎓 7. STUDENT PANEL LOGIC
+    // -------------------------------------
+
+    function renderStudentPanel() {
+        const studentInfo = getData(STORAGE_KEYS.STUDENTS).find(s => s.rollNo === currentUser.rollNo && s.class === currentUser.class);
+
+        return `
+            <div class="stats-grid" style="margin-bottom: 20px;">
+                <div class="stat-box" style="border-color: var(--color-blue);">
+                    <h4>Total Points ⭐</h4>
+                    <p>${studentInfo.totalPoints}</p>
+                </div>
+                <div class="stat-box" style="border-color: var(--color-gold);">
+                    <h4>Class</h4>
+                    <p>${currentUser.class}</p>
+                </div>
+                <div class="stat-box" style="border-color: var(--color-success);">
+                    <h4>Roll No</h4>
+                    <p>${currentUser.rollNo}</p>
+                </div>
+            </div>
+
+            <div class="btn-group" style="margin-bottom: 20px;">
+                <button onclick="renderStudentSection('mcq')">Today's Assignments</button>
+                <button onclick="renderStudentSection('leaderboards')">Leaderboards & Ranking</button>
+            </div>
+            <div id="student-section-content">
+                ${renderTodayMCQs()}
+            </div>
+        `;
+    }
+
+    function renderStudentSection(section) {
+        const contentDiv = document.getElementById('student-section-content');
+        if (section === 'mcq') contentDiv.innerHTML = renderTodayMCQs();
+        if (section === 'leaderboards') contentDiv.innerHTML = renderLeaderboards();
+    }
+
+    function renderTodayMCQs() {
+        const today = getTodayDate();
+        const allMCQs = getData(STORAGE_KEYS.MCQS);
+        const attempts = getData(STORAGE_KEYS.ATTEMPTS);
+        
+        // Filter MCQs for the student's class and today's date
+        const classMCQs = allMCQs.filter(q => q.class === currentUser.class && q.date === today);
+
+        let mcqHTML = '<h3>Assignments for Today: ' + today + '</h3>';
+
+        if (classMCQs.length === 0) {
+            mcqHTML += '<p style="text-align: center;">🎉 No assignments uploaded for Class ' + currentUser.class + ' today. Enjoy the break!</p>';
+            return mcqHTML;
+        }
+
+        mcqHTML += '<div class="mcq-container">';
+
+        classMCQs.forEach(mcq => {
+            const studentAttempt = attempts.find(a => 
+                a.mcqId === mcq.id && 
+                a.rollNo === currentUser.rollNo && 
+                a.class === currentUser.class
+            );
+            
+            const attempted = !!studentAttempt;
+            
+            mcqHTML += `
+                <div class="mcq-item" id="mcq-item-${mcq.id}">
+                    <p><strong>${mcq.subject} Assignment - Q ID: ${mcq.id}</strong></p>
+                    <p class="mcq-question">${mcq.question}</p>
+                    <div id="options-${mcq.id}" class="btn-group" style="flex-direction: column;">
+                        ${Object.entries(mcq.options).map(([key, value]) => `
+                            <button 
+                                class="option-btn" 
+                                data-mcqid="${mcq.id}" 
+                                data-answer="${key}"
+                                ${attempted ? 'disabled' : ''}
+                                onclick="selectOption(${mcq.id}, '${key}')"
+                            >
+                                ${key}: ${value}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="feedback-${mcq.id}" class="feedback-area">
+                        ${attempted ? `<div class="feedback ${studentAttempt.isCorrect ? 'correct' : 'wrong'}">${studentAttempt.isCorrect ? 'Answered Correctly! (+5 Points)' : 'Answered Incorrectly.'}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        mcqHTML += '</div>';
+        return mcqHTML;
+    }
+
+    function selectOption(mcqId, studentAnswer) {
+        const mcqs = getData(STORAGE_KEYS.MCQS);
+        const mcq = mcqs.find(q => q.id === mcqId);
+        
+        if (!mcq) return;
+
+        const isCorrect = mcq.correct === studentAnswer;
+        const pointsAwarded = isCorrect ? 5 : 0;
+        
+        // Update Attempts
+        let attempts = getData(STORAGE_KEYS.ATTEMPTS);
+        const newAttempt = {
+            mcqId,
+            rollNo: currentUser.rollNo,
+            class: currentUser.class,
+            date: getTodayDate(),
+            studentAnswer,
+            isCorrect
+        };
+        attempts.push(newAttempt);
+        saveData(STORAGE_KEYS.ATTEMPTS, attempts);
+
+        // Update Student Points and render feedback
+        updateStudentPoints(pointsAwarded, mcq.subject, isCorrect);
+        
+        const feedbackDiv = document.getElementById(`feedback-${mcqId}`);
+        const optionsDiv = document.getElementById(`options-${mcqId}`);
+
+        // Disable all buttons for this MCQ
+        optionsDiv.querySelectorAll('button').forEach(btn => {
+            btn.disabled = true;
+            if (btn.getAttribute('data-answer') === studentAnswer) {
+                 btn.classList.add('selected');
+            }
+        });
+        
+        if (isCorrect) {
+            feedbackDiv.innerHTML = '<div class="feedback correct">WOW! Your response is correct 🎉 +5 points</div>';
+            showAlert('Correct Answer! +5 Points!', 'success');
+        } else {
+            feedbackDiv.innerHTML = '<div class="feedback wrong">Try again! Keep practicing 😊</div>';
+            showAlert('Incorrect Answer. 0 Points.', 'error');
+        }
+    }
+
+    function updateStudentPoints(points, subject, isCorrect) {
+        if (points === 0 && !isCorrect) return; // Only update on correct answers
+
+        let students = getData(STORAGE_KEYS.STUDENTS);
+        const studentIndex = students.findIndex(s => s.rollNo === currentUser.rollNo && s.class === currentUser.class);
+
+        if (studentIndex !== -1) {
+            const student = students[studentIndex];
+            
+            // 1. Total Points
+            student.totalPoints = (student.totalPoints || 0) + points;
+
+            // 2. Subject Points
+            if (!student.points) student.points = {};
+            student.points[subject] = (student.points[subject] || 0) + points;
+            
+            students[studentIndex] = student;
+            saveData(STORAGE_KEYS.STUDENTS, students);
+            
+            // Re-render dashboard to update points immediately
+            if (currentUser.role === 'student') {
+                renderDashboard('student');
+                // Ensure student section remains on the MCQ tab if points were updated from there
+                renderStudentSection('mcq'); 
+            }
+        }
+    }
+
+    // -------------------------------------
+    // 🏆 8. LEADERBOARD LOGIC
+    // -------------------------------------
+
+    function renderLeaderboards() {
+        return `
+            <h3>Leaderboards 🏆</h3>
+            <div class="card">
+                <div class="btn-group" style="margin-bottom: 15px;">
+                    <button onclick="displayLeaderboard('school')">School-wide Top</button>
+                    <button onclick="displayLeaderboard('class')">Class-wise</button>
+                    <button onclick="displayLeaderboard('subject')">Subject-wise</button>
+                </div>
+                <div id="leaderboard-display">
+                    ${displaySchoolLeaderboard()}
+                </div>
+            </div>
+        `;
+    }
+
+    function displayLeaderboard(type) {
+        const displayDiv = document.getElementById('leaderboard-display');
+        if (type === 'school') displayDiv.innerHTML = displaySchoolLeaderboard();
+        if (type === 'class') displayDiv.innerHTML = displayClassLeaderboard();
+        if (type === 'subject') displayDiv.innerHTML = displaySubjectLeaderboard();
+    }
+
+    // A. School-wide Leaderboard
+    function displaySchoolLeaderboard() {
+        const students = getData(STORAGE_KEYS.STUDENTS);
+        const sortedStudents = students.sort((a, b) => b.totalPoints - a.totalPoints);
+        
+        return `
+            <h4>School-wide Top Students (Total Points)</h4>
+            <table class="data-grid">
+                <thead><tr><th>Rank</th><th>Name</th><th>Class</th><th>Total Points</th></tr></thead>
+                <tbody>
+                    ${sortedStudents.map((s, index) => `
+                        <tr style="${s.rollNo === currentUser.rollNo && s.class === currentUser.class ? 'background-color: rgba(255, 193, 7, 0.2);' : ''}">
+                            <td>${index + 1}</td>
+                            <td>${s.name}</td>
+                            <td>${s.class}</td>
+                            <td>${s.totalPoints}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    // B. Class-wise Leaderboard
+    function displayClassLeaderboard() {
+        const students = getData(STORAGE_KEYS.STUDENTS);
+        const classes = [...new Set(students.map(s => s.class))].sort();
+        
+        let html = '<h4>Class-wise Leaderboards</h4>';
+
+        classes.forEach(c => {
+            const classStudents = students.filter(s => s.class === c).sort((a, b) => b.totalPoints - a.totalPoints);
+            html += `
+                <div class="card" style="margin-top: 20px;">
+                    <h5>Class ${c} Rankings</h5>
+                    <table class="data-grid">
+                        <thead><tr><th>Rank</th><th>Name</th><th>Roll No</th><th>Total Points</th></tr></thead>
+                        <tbody>
+                            ${classStudents.map((s, index) => `
+                                <tr style="${s.rollNo === currentUser.rollNo && s.class === currentUser.class ? 'background-color: rgba(0, 188, 212, 0.2);' : ''}">
+                                    <td>${index + 1}</td>
+                                    <td>${s.name}</td>
+                                    <td>${s.rollNo}</td>
+                                    <td>${s.totalPoints}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        });
+        return html;
+    }
+
+    // C. Subject-wise Leaderboard
+    function displaySubjectLeaderboard() {
+        const students = getData(STORAGE_KEYS.STUDENTS);
+        
+        let html = '<h4>Subject-wise Leaderboards</h4>';
+        html += `<select id="subject-select" onchange="updateSubjectLeaderboard(this.value)">
+                    <option value="">Select Subject</option>
+                    ${SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('')}
+                 </select>`;
+        html += '<div id="subject-leaderboard-detail" style="margin-top: 15px;">Select a subject to view the ranking.</div>';
+        return html;
+    }
+
+    function updateSubjectLeaderboard(subject) {
+        const students = getData(STORAGE_KEYS.STUDENTS);
+        const displayDiv = document.getElementById('subject-leaderboard-detail');
+        
+        if (!subject) {
+            displayDiv.innerHTML = 'Select a subject to view the ranking.';
+            return;
+        }
+
+        const subjectScores = students
+            .map(s => ({
+                name: s.name,
+                class: s.class,
+                rollNo: s.rollNo,
+                points: s.points[subject] || 0,
+                isCurrentUser: s.rollNo === currentUser.rollNo && s.class === currentUser.class
+            }))
+            .filter(s => s.points > 0) // Only show students with points in this subject
+            .sort((a, b) => b.points - a.points);
+            
+        let html = `<h5>Top Scorers in ${subject}</h5>`;
+        
+        if (subjectScores.length === 0) {
+            html += `<p>No students have earned points in ${subject} yet.</p>`;
+        } else {
+             html += `
+                <table class="data-grid">
+                    <thead><tr><th>Rank</th><th>Name</th><th>Class</th><th>Points in ${subject}</th></tr></thead>
+                    <tbody>
+                        ${subjectScores.map((s, index) => `
+                            <tr style="${s.isCurrentUser ? 'background-color: rgba(255, 193, 7, 0.2);' : ''}">
+                                <td>${index + 1}</td>
+                                <td>${s.name}</td>
+                                <td>${s.class}</td>
+                                <td>${s.points}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        displayDiv.innerHTML = html;
+    }
+
+
+    // -------------------------------------
+    // 🚀 9. APP START
+    // -------------------------------------
+
+    window.onload = () => {
+        initializeData();
+        checkAuth();
+    };
+</script>
+</body>
+</html>
