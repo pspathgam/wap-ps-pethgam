@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GPS Pethgam Wagoora Assignment Portal</title>
-    <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
-    <!-- Load Firebase SDKs -->
     <script type="module">
         // Import necessary Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, collection, query, onSnapshot, 
+            addDoc, serverTimestamp, getDocs, deleteDoc, where 
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getDatabase, ref as dbRef, update as dbUpdate, onValue as dbOnValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         // Global Firebase variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+        const firebaseConfig = {
             apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
             authDomain: "wap-ps-pethgam.firebaseapp.com",
             databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
@@ -27,7 +27,6 @@
             messagingSenderId: "430925411362",
             appId: "1:430925411362:web:22857dee585d02fc54467b"
         };
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // Initialize Firebase services
         const app = initializeApp(firebaseConfig);
@@ -35,121 +34,592 @@
         const db = getFirestore(app);
         const rtdb = getDatabase(app);
 
-        // State variables
+        // --- GLOBAL STATE ---
         let userId = null;
+        let username = null;
+        let role = null;
         let isAuthReady = false;
         let rtdbWatchId = null;
+        let allUsers = {}; // Cache for all users loaded from Firestore
 
-        // --- UI ELEMENTS ---
-        const portalStatusEl = document.getElementById('portal-status');
-        const locationDisplayEl = document.getElementById('location-display');
-        const errorEl = document.getElementById('error-message');
-        const remoteDisplayEl = document.getElementById('remote-location-display');
-        const mapLinkEl = document.getElementById('map-link');
-        const loginFormEl = document.getElementById('login-form');
-        const loginContainerEl = document.getElementById('login-container');
-        const assignmentContainerEl = document.getElementById('assignment-portal-container');
-        const welcomeMessageEl = document.getElementById('welcome-message');
-
-
-        // --- FIREBASE AUTHENTICATION ---
-
-        async function initAuth() {
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                console.log("Firebase Auth initialized.");
-            } catch (error) {
-                console.error("Firebase Auth failed:", error);
-            }
-
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    userId = user.uid;
-                    isAuthReady = true;
-                    console.log("User authenticated:", userId);
-                } else {
-                    userId = null;
-                    isAuthReady = true;
-                    console.log("User not authenticated.");
-                }
-                
-                // Once auth state is known, check for existing session
-                checkSession();
-                
-                // Start listening for remote data regardless of login state (for cross-device view)
-                setupDataListener();
-            });
-        }
+        // --- CONSTANTS ---
+        const USER_COLLECTION = collection(db, 'users');
+        const AVAILABLE_CLASSES = ["1st", "2nd", "3rd", "4th", "5th"];
+        const AVAILABLE_SUBJECTS = ["Math", "Science", "History", "English"];
         
-        // --- LOGIN LOGIC (Placeholder for this example) ---
-        
-        // In a real app, this would validate credentials against a backend
-        // For this demo, we use a simple hardcoded check to show the flow.
-        const VALID_LOGIN = {
-            role: "Teacher",
-            user: "Ashraf_Wagoora",
-            pin: "1234"
+        // Initial Admin is hardcoded for first login, all others must be created.
+        const INITIAL_ADMIN = { 
+            "Admin_Pethgam": { role: "Admin", pin: "0000" } 
         };
 
-        function handleLogin(event) {
+        // --- UI ELEMENTS ---
+        const errorEl = document.getElementById('error-message');
+        const loginFormEl = document.getElementById('login-form');
+        const loginContainerEl = document.getElementById('login-container');
+        const studentSignupFormEl = document.getElementById('student-signup-form');
+        const studentSignupContainerEl = document.getElementById('student-signup-container');
+        const assignmentContainerEl = document.getElementById('assignment-portal-container');
+        const welcomeMessageEl = document.getElementById('welcome-message');
+        const teacherViewEl = document.getElementById('teacher-view'); // Teacher/Admin assignments
+        const studentViewEl = document.getElementById('student-view');
+        const adminViewEl = document.getElementById('admin-user-management-view');
+        const userListTableBodyEl = document.getElementById('user-list-table-body');
+        const assignmentFormEl = document.getElementById('assignment-form');
+        const assignmentListEl = document.getElementById('assignment-list');
+        const leaderboardTableBodyEl = document.getElementById('leaderboard-table-body');
+        
+        // Geolocation elements
+        const locationViewEl = document.getElementById('location-view');
+        const locationControlsEl = document.getElementById('location-controls');
+        const portalStatusEl = document.getElementById('portal-status');
+        const locationDisplayEl = document.getElementById('location-display');
+        const remoteDisplayEl = document.getElementById('remote-location-display');
+        const mapLinkEl = document.getElementById('map-link');
+
+        // --- FIREBASE AUTHENTICATION & INITIALIZATION ---
+
+        async function initAuth() {
+            onAuthStateChanged(auth, (user) => {
+                if (user) userId = user.uid;
+                else userId = null;
+                isAuthReady = true;
+                checkSession();
+            });
+            await signInAnonymously(auth);
+        }
+
+        // --- ADMIN: USER MANAGEMENT ---
+
+        async function loadAllUsers() {
+            const snapshot = await getDocs(USER_COLLECTION);
+            allUsers = {};
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                allUsers[data.username] = { ...data, id: doc.id };
+            });
+            renderUserList();
+            return allUsers;
+        }
+
+        function renderUserList() {
+            const usersArray = Object.values(allUsers).sort((a, b) => a.username.localeCompare(b.username));
+            
+            userListTableBodyEl.innerHTML = usersArray.map(user => `
+                <tr class="text-sm border-t border-gray-600">
+                    <td class="p-3 font-semibold text-yellow-400">${user.username}</td>
+                    <td class="p-3">${user.role}</td>
+                    <td class="p-3">${user.class || 'N/A'}</td>
+                    <td class="p-3">
+                        <button data-id="${user.id}" class="delete-user-btn text-red-400 hover:text-red-300 font-bold ml-2">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.querySelectorAll('.delete-user-btn').forEach(button => {
+                button.addEventListener('click', handleDeleteUser);
+            });
+        }
+
+        async function handleAddUser(event) {
             event.preventDefault();
             
-            const role = document.getElementById('role-select').value;
-            const username = document.getElementById('username-input').value.trim();
+            const usernameInput = document.getElementById('add-username').value.trim();
+            const roleInput = document.getElementById('add-role').value;
+            const pinInput = document.getElementById('add-pin').value.trim();
+            const classInput = document.getElementById('add-class').value;
+            
+            if (allUsers[usernameInput] || INITIAL_ADMIN[usernameInput]) {
+                errorEl.textContent = 'Error: Username already exists!';
+                return;
+            }
+            if (!usernameInput || !roleInput || !pinInput) {
+                 errorEl.textContent = 'Error: All fields must be filled.';
+                return;
+            }
+
+            try {
+                const userData = {
+                    username: usernameInput,
+                    role: roleInput,
+                    pin: pinInput,
+                    class: (roleInput === 'Student' || roleInput === 'Teacher') ? classInput : null,
+                    createdAt: serverTimestamp()
+                };
+                
+                await addDoc(USER_COLLECTION, userData);
+                document.getElementById('add-user-form').reset();
+                errorEl.textContent = `${usernameInput} (${roleInput}) added successfully!`;
+                await loadAllUsers(); // Refresh list
+            } catch (e) {
+                console.error("Error adding user:", e);
+                errorEl.textContent = `Error adding user: ${e.message}`;
+            }
+        }
+
+        async function handleDeleteUser(event) {
+            const userIdToDelete = event.target.getAttribute('data-id');
+            const usernameToDelete = allUsers[Object.keys(allUsers).find(key => allUsers[key].id === userIdToDelete)].username;
+
+            if (confirm(`Are you sure you want to delete user ${usernameToDelete}?`)) {
+                try {
+                    await deleteDoc(doc(db, 'users', userIdToDelete));
+                    errorEl.textContent = `${usernameToDelete} deleted successfully.`;
+                    await loadAllUsers(); // Refresh list
+                } catch (e) {
+                    console.error("Error deleting user:", e);
+                    errorEl.textContent = `Error deleting user: ${e.message}`;
+                }
+            }
+        }
+
+        // --- STUDENT SIGNUP ---
+
+        function showSignup() {
+            loginContainerEl.classList.add('hidden');
+            studentSignupContainerEl.classList.remove('hidden');
+            document.getElementById('student-signup-class').innerHTML = AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('signup-error-message').textContent = '';
+        }
+
+        function showLogin() {
+            loginContainerEl.classList.remove('hidden');
+            studentSignupContainerEl.classList.add('hidden');
+            document.getElementById('signup-error-message').textContent = '';
+        }
+
+        async function handleStudentSignup(event) {
+            event.preventDefault();
+            
+            const signupUsername = document.getElementById('student-signup-username').value.trim();
+            const signupPin = document.getElementById('student-signup-pin').value.trim();
+            const signupClass = document.getElementById('student-signup-class').value;
+            const signupErrorEl = document.getElementById('signup-error-message');
+
+            if (!signupUsername || !signupPin || !signupClass) {
+                signupErrorEl.textContent = 'Please fill all fields.';
+                return;
+            }
+            if (allUsers[signupUsername] || INITIAL_ADMIN[signupUsername]) {
+                signupErrorEl.textContent = 'Error: Username already exists!';
+                return;
+            }
+            
+            try {
+                await addDoc(USER_COLLECTION, {
+                    username: signupUsername,
+                    role: 'Student',
+                    pin: signupPin,
+                    class: signupClass,
+                    createdAt: serverTimestamp()
+                });
+                
+                signupErrorEl.textContent = 'Signup successful! Please log in now.';
+                studentSignupFormEl.reset();
+                await loadAllUsers(); // Update cache
+                setTimeout(showLogin, 2000);
+
+            } catch (e) {
+                console.error("Signup error:", e);
+                signupErrorEl.textContent = `Signup error: ${e.message}`;
+            }
+        }
+
+        // --- LOGIN/SESSION LOGIC ---
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            role = document.getElementById('role-select').value;
+            username = document.getElementById('username-input').value.trim();
             const pin = document.getElementById('pin-input').value.trim();
             
             errorEl.textContent = '';
+            
+            // Check hardcoded Admin first
+            const initialUser = INITIAL_ADMIN[username];
+            if (initialUser && initialUser.role === role && initialUser.pin === pin) {
+                 await finalizeLogin(username, role, initialUser.class);
+                 return;
+            }
+            
+            // Check users loaded from Firestore
+            const userData = allUsers[username];
 
-            if (role === VALID_LOGIN.role && username === VALID_LOGIN.user && pin === VALID_LOGIN.pin) {
-                // Successful login transition
-                sessionStorage.setItem('portal_logged_in', 'true');
-                sessionStorage.setItem('portal_username', username);
-                transitionToAssignmentPortal(username);
+            if (userData && userData.role === role && userData.pin === pin) {
+                await finalizeLogin(username, role, userData.class);
             } else {
                 errorEl.textContent = 'Login Failed: Invalid Role, Username, or PIN.';
             }
         }
         
-        function checkSession() {
-            if (sessionStorage.getItem('portal_logged_in') === 'true' && isAuthReady) {
-                const username = sessionStorage.getItem('portal_username') || 'User';
-                transitionToAssignmentPortal(username);
-            } else {
-                 // Show login form if not logged in
-                loginContainerEl.classList.remove('hidden');
-                assignmentContainerEl.classList.add('hidden');
+        async function finalizeLogin(user, userRole, userClass) {
+            sessionStorage.setItem('portal_logged_in', 'true');
+            sessionStorage.setItem('portal_username', user);
+            sessionStorage.setItem('portal_role', userRole);
+            sessionStorage.setItem('portal_class', userClass || '');
+            
+            username = user;
+            role = userRole;
+            
+            transitionToAssignmentPortal(user, userRole);
+        }
+
+        function handleLogout() {
+            stopSharing();
+            sessionStorage.clear();
+            
+            loginContainerEl.classList.remove('hidden');
+            assignmentContainerEl.classList.add('hidden');
+            errorEl.textContent = 'Logged out successfully.';
+            
+            signOut(auth).catch(err => console.error("Firebase logout error:", err));
+        }
+
+        async function checkSession() {
+            if (isAuthReady) {
+                // Load users before checking session (essential for login validation)
+                await loadAllUsers(); 
+
+                const loggedIn = sessionStorage.getItem('portal_logged_in') === 'true';
+                if (loggedIn) {
+                    username = sessionStorage.getItem('portal_username');
+                    role = sessionStorage.getItem('portal_role');
+                    transitionToAssignmentPortal(username, role);
+                } else {
+                    loginContainerEl.classList.remove('hidden');
+                    assignmentContainerEl.classList.add('hidden');
+                    studentSignupContainerEl.classList.add('hidden');
+                }
             }
         }
 
-        function transitionToAssignmentPortal(username) {
+        function transitionToAssignmentPortal(user, userRole) {
             loginContainerEl.classList.add('hidden');
+            studentSignupContainerEl.classList.add('hidden');
             assignmentContainerEl.classList.remove('hidden');
-            welcomeMessageEl.textContent = `Welcome, ${username}! (User ID: ${userId})`;
+            welcomeMessageEl.textContent = `Welcome, ${user} (${userRole})!`;
+            
+            // Role-Based View Switching
+            const isAdmin = userRole === 'Admin';
+            const isTeacher = userRole === 'Teacher';
+            const isStudent = userRole === 'Student';
+            
+            adminViewEl.classList.toggle('hidden', !isAdmin);
+            teacherViewEl.classList.toggle('hidden', !(isTeacher || isAdmin));
+            studentViewEl.classList.toggle('hidden', !isStudent);
+            locationControlsEl.classList.toggle('hidden', !isAdmin); // Only Admin manages GPS sharing
+            
+            // Populate Class/Subject dropdowns for assignments
+            if(isTeacher || isAdmin) {
+                 const classSelect = document.getElementById('assignment-class-select');
+                 const subjectSelect = document.getElementById('assignment-subject-select');
+                 classSelect.innerHTML = AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
+                 subjectSelect.innerHTML = AVAILABLE_SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
+                 // Also populate class for Admin's add user form
+                 document.getElementById('add-class').innerHTML = 
+                    '<option value="">N/A</option>' + AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            }
+            
+            // Set default view
+            showView('assignments');
+        }
+        
+        // --- ASSIGNMENT MANAGEMENT (TEACHER/ADMIN) & STUDENT VIEW ---
+        
+        async function handleAssignmentSubmit(event) {
+            event.preventDefault();
+            
+            const selectedClass = document.getElementById('assignment-class-select').value;
+            const selectedSubject = document.getElementById('assignment-subject-select').value;
+            const question = document.getElementById('assignment-question').value.trim();
+            const correctOption = document.getElementById('assignment-correct-option').value.trim();
+            
+            if (!selectedClass || !selectedSubject || !question || !correctOption) {
+                errorEl.textContent = 'Please fill all fields for the assignment.';
+                return;
+            }
+
+            try {
+                const assignmentData = {
+                    class: selectedClass,
+                    subject: selectedSubject,
+                    question: question,
+                    correctAnswer: correctOption,
+                    createdBy: username,
+                    timestamp: serverTimestamp(),
+                    status: 'Active'
+                };
+                
+                const assignmentsCollectionRef = collection(db, 'assignments');
+                await addDoc(assignmentsCollectionRef, assignmentData);
+                
+                errorEl.textContent = 'Assignment published successfully!';
+                assignmentFormEl.reset();
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                errorEl.textContent = `Error adding assignment: ${e.message}`;
+            }
         }
 
+        function setupAssignmentListeners() {
+            if (!isAuthReady) return;
 
-        // --- GEOLOCATION AND DATA UPLOAD (Assignment Portal Logic) ---
+            // 1. Listen for all assignments
+            const assignmentsQuery = query(collection(db, 'assignments'), orderBy('timestamp', 'desc'));
+            onSnapshot(assignmentsQuery, (snapshot) => {
+                const assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAssignments(assignments);
+            }, (error) => {
+                console.error("Error listening to assignments:", error);
+            });
+            
+            // 2. Listen for leaderboard data
+            const leaderboardQuery = query(collection(db, 'leaderboard'), orderBy('score', 'desc'));
+            onSnapshot(leaderboardQuery, (snapshot) => {
+                const scores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderLeaderboard(scores);
+            }, (error) => {
+                console.error("Error listening to leaderboard:", error);
+            });
+        }
         
-        const pethgamDbRef = dbRef(rtdb, 'pethgam');
+        function renderAssignments(assignments) {
+            if (role !== 'Student') return;
 
-        // Function to handle successful geolocation retrieval
+            const studentClass = sessionStorage.getItem('portal_class');
+            
+            // Students only see assignments for their class
+            const filteredAssignments = assignments.filter(a => 
+                a.class === studentClass
+            );
+
+            if (filteredAssignments.length === 0) {
+                assignmentListEl.innerHTML = '<p class="text-center text-gray-400">No assignments available for your class.</p>';
+                return;
+            }
+
+            assignmentListEl.innerHTML = filteredAssignments.map(a => `
+                <div id="assignment-${a.id}" class="card p-4 mb-3 border-l-4 border-yellow-500">
+                    <p class="font-bold text-lg text-yellow-400">${a.class} / ${a.subject}</p>
+                    <p class="text-gray-300 mb-2">${a.question}</p>
+                    <input type="text" id="answer-${a.id}" class="w-full px-3 py-2 rounded input-style mb-2" placeholder="Your Answer">
+                    <button data-id="${a.id}" data-answer="${a.correctAnswer}" class="submit-assignment-btn w-full bg-teal-500 text-white py-2 rounded hover:bg-teal-600 transition">Submit Answer</button>
+                    <p id="feedback-${a.id}" class="mt-2 text-sm font-semibold"></p>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.submit-assignment-btn').forEach(button => {
+                button.addEventListener('click', handleStudentSubmission);
+            });
+        }
+        
+        async function handleStudentSubmission(event) {
+            const assignmentId = event.target.getAttribute('data-id');
+            const correctAnswer = event.target.getAttribute('data-answer');
+            const studentAnswerEl = document.getElementById(`answer-${assignmentId}`);
+            const feedbackEl = document.getElementById(`feedback-${assignmentId}`);
+            const studentAnswer = studentAnswerEl.value.trim();
+            
+            if (!studentAnswer) {
+                feedbackEl.textContent = 'Please provide an answer.';
+                feedbackEl.className = 'mt-2 text-sm font-semibold text-yellow-400';
+                return;
+            }
+
+            const isCorrect = studentAnswer.toLowerCase() === correctAnswer.toLowerCase();
+            const score = isCorrect ? 10 : 0;
+            const feedback = isCorrect ? 'Correct! Score: 10 points.' : `Incorrect. Correct answer was: ${correctAnswer}`;
+            const feedbackClass = isCorrect ? 'text-green-500' : 'text-red-500';
+
+            feedbackEl.textContent = feedback;
+            feedbackEl.className = `mt-2 text-sm font-semibold ${feedbackClass}`;
+            studentAnswerEl.disabled = true;
+            event.target.disabled = true;
+            
+            try {
+                // Check if student already submitted for this assignment
+                const leaderboardCollectionRef = collection(db, 'leaderboard');
+                const existingSubmissionsQuery = query(
+                    leaderboardCollectionRef, 
+                    where('assignmentId', '==', assignmentId), 
+                    where('studentId', '==', userId)
+                );
+                const existingSnapshot = await getDocs(existingSubmissionsQuery);
+                
+                if (existingSnapshot.empty) {
+                     await addDoc(leaderboardCollectionRef, {
+                        assignmentId: assignmentId,
+                        studentId: userId,
+                        username: username,
+                        class: sessionStorage.getItem('portal_class'),
+                        score: score,
+                        isCorrect: isCorrect,
+                        timestamp: serverTimestamp()
+                    });
+                }
+            } catch (e) {
+                console.error("Error saving leaderboard score: ", e);
+            }
+        }
+        
+        function renderLeaderboard(scores) {
+            // Aggregate scores by student (sum all scores)
+            const aggregatedScores = {};
+
+            scores.forEach(s => {
+                if (!aggregatedScores[s.username]) {
+                    aggregatedScores[s.username] = { totalScore: 0, assignments: 0 };
+                }
+                aggregatedScores[s.username].totalScore += s.score;
+                aggregatedScores[s.username].assignments += 1;
+            });
+            
+            // Convert to array and sort by totalScore (descending)
+            const sortedLeaderboard = Object.keys(aggregatedScores).map(username => ({
+                username: username,
+                score: aggregatedScores[username].totalScore,
+                assignments: aggregatedScores[username].assignments
+            })).sort((a, b) => b.score - a.score);
+
+            
+            leaderboardTableBodyEl.innerHTML = sortedLeaderboard.map((student, index) => `
+                <tr class="text-sm border-t border-gray-600">
+                    <td class="p-3">${index + 1}</td>
+                    <td class="p-3 font-semibold text-yellow-400">${student.username}</td>
+                    <td class="p-3 text-right">${student.score}</td>
+                    <td class="p-3 text-right">${student.assignments}</td>
+                </tr>
+            `).join('');
+        }
+        
+
+        // --- GEOLOCATION LOGIC (ADMIN ONLY) ---
+        
+        const rtdbPath = 'pethgam';
+
+        function success(pos) {
+            // Geolocation logic remains similar to previous step...
+            // (Functionality details omitted for brevity, but the full code is below)
+        }
+
+        function error(err) {
+            // Geolocation error handling remains similar...
+        }
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        };
+        
+        function startSharing() {
+            if (role !== 'Admin') {
+                errorEl.textContent = 'Only Admin can start location sharing.';
+                return;
+            }
+            // ... (Start sharing logic remains similar)
+        }
+        
+        function stopSharing() {
+             // ... (Stop sharing logic remains similar)
+        }
+
+        function setupDataListener() {
+            // Listen for Admin's location data
+            const adminLocationRef = dbRef(rtdb, rtdbPath + '/Admin_Pethgam');
+
+            dbOnValue(adminLocationRef, (snapshot) => {
+                const remoteData = snapshot.val();
+                
+                if (remoteData && remoteData.latitude) {
+                    remoteDisplayEl.innerHTML = `
+                        <div class="text-xs font-semibold text-gray-500 mb-1">LIVE SHARED LOCATION (From ${remoteData.username})</div>
+                        <p><strong>Latitude:</strong> ${remoteData.latitude.toFixed(6)}</p>
+                        <p><strong>Longitude:</strong> ${remoteData.longitude.toFixed(6)}</p>
+                        <p><strong>Last Shared:</strong> ${remoteData.timestamp}</p>
+                    `;
+                    
+                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${remoteData.latitude},${remoteData.longitude}`;
+                    mapLinkEl.href = mapUrl;
+                    mapLinkEl.classList.remove('hidden');
+                    mapLinkEl.textContent = 'View Location on Google Maps';
+
+                } else {
+                    remoteDisplayEl.innerHTML = '<div class="text-red-400">No live shared location data available.</div>';
+                    mapLinkEl.classList.add('hidden');
+                }
+            }, {
+                onlyOnce: false
+            });
+        }
+        // Simplified geolocation functions (removed from visible code for brevity, but included in the full file)
+        
+        
+        // --- INITIALIZATION ---
+
+        window.onload = function() {
+            initAuth();
+            
+            // Populate Role Select
+            const roleSelect = document.getElementById('role-select');
+            roleSelect.innerHTML = `
+                <option value="">-- Select Role --</option>
+                <option value="Admin">Admin</option>
+                <option value="Teacher">Teacher</option>
+                <option value="Student">Student</option>
+            `;
+            
+            // Attach event listeners
+            loginFormEl.addEventListener('submit', handleLogin);
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+            
+            // Admin events
+            document.getElementById('add-user-form').addEventListener('submit', handleAddUser);
+            
+            // Student Signup events
+            document.getElementById('show-signup-btn').addEventListener('click', showSignup);
+            document.getElementById('back-to-login-btn').addEventListener('click', showLogin);
+            studentSignupFormEl.addEventListener('submit', handleStudentSignup);
+
+            // Assignment events
+            assignmentFormEl.addEventListener('submit', handleAssignmentSubmit);
+            setupAssignmentListeners();
+
+            // Geolocation events
+            document.getElementById('start-btn').addEventListener('click', startSharing);
+            document.getElementById('stop-btn').addEventListener('click', stopSharing);
+            
+            // Set initial button styles
+            document.getElementById('stop-btn').classList.add('bg-gray-500', 'cursor-not-allowed');
+            document.getElementById('nav-assignments').classList.add('active');
+        }
+        
+        // Simple Navigation Toggle
+        window.showView = function(viewId) {
+            const views = ['assignments-view', 'leaderboard-view', 'location-view', 'user-management-view'];
+            views.forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById(viewId + '-view').classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('nav-' + viewId).classList.add('active');
+        }
+        
+        // --- GEOLOCATION HELPER FUNCTIONS (FULL CODE) ---
         function success(pos) {
             const crd = pos.coords;
             const timestamp = new Date().toLocaleString();
 
+            const currentDeviceId = userId || 'anonymous-device'; 
             const locationData = {
                 latitude: crd.latitude,
                 longitude: crd.longitude,
                 accuracy: crd.accuracy,
                 timestamp: timestamp,
-                deviceId: userId || 'anonymous-device' // Use the actual Firebase User ID
+                deviceId: currentDeviceId,
+                username: username || 'Anonymous' 
             };
 
-            // Display current location locally
             locationDisplayEl.innerHTML = `
                 <div class="text-xs font-semibold text-gray-500 mb-1">CURRENT DEVICE LOCATION</div>
                 <p><strong>Latitude:</strong> ${crd.latitude.toFixed(6)}</p>
@@ -160,36 +630,27 @@
 
             errorEl.textContent = '';
             
-            // Update the single device node in the Realtime Database
-            const deviceRef = dbRef(rtdb, 'pethgam/' + locationData.deviceId);
+            const deviceRef = dbRef(rtdb, rtdbPath + '/' + currentDeviceId);
             dbUpdate(deviceRef, locationData)
                 .then(() => {
-                    console.log("Location data saved successfully to Firebase.");
-                    portalStatusEl.textContent = 'Portal is ACTIVE and sharing location.';
+                    portalStatusEl.textContent = 'Location Sharing ACTIVE.';
                     portalStatusEl.className = 'text-green-400 font-bold';
                 })
                 .catch((error) => {
                     console.error("Error saving location:", error);
-                    errorEl.textContent = 'Error saving location data to Firebase. Check network/rules.';
+                    errorEl.textContent = 'Error saving location data to Firebase.';
                 });
         }
-
-        // Function to handle geolocation errors
         function error(err) {
-            console.warn(`ERROR(${err.code}): ${err.message}`);
-            errorEl.textContent = `Geolocation Error: ${err.message}. Please enable location services.`;
-            portalStatusEl.textContent = 'Portal is INACTIVE: Location permission denied or unavailable.';
+            errorEl.textContent = `Geolocation Error: ${err.message}.`;
+            portalStatusEl.textContent = 'Location Sharing INACTIVE: Permission Denied.';
             portalStatusEl.className = 'text-red-500 font-bold';
         }
-
-        // Options for geolocation
-        const options = {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 0
-        };
-        
         function startSharing() {
+            if (role !== 'Admin') {
+                errorEl.textContent = 'Only Admin can start location sharing.';
+                return;
+            }
             if (!userId) {
                 errorEl.textContent = 'Please log in before starting location sharing.';
                 return;
@@ -202,86 +663,27 @@
                 
                 portalStatusEl.textContent = 'Attempting to get location...';
                 portalStatusEl.className = 'text-yellow-400 font-bold';
-                
                 rtdbWatchId = navigator.geolocation.watchPosition(success, error, options);
                 
-                document.getElementById('start-btn').classList.add('bg-gray-500', 'cursor-not-allowed');
-                document.getElementById('start-btn').classList.remove('bg-green-600', 'hover:bg-green-700');
+                document.getElementById('start-btn').classList.replace('bg-green-600', 'bg-gray-500');
+                document.getElementById('stop-btn').classList.replace('bg-gray-500', 'bg-red-500');
                 document.getElementById('start-btn').textContent = 'Sharing Active';
-
-                document.getElementById('stop-btn').classList.add('bg-red-500', 'hover:bg-red-600');
-                document.getElementById('stop-btn').classList.remove('bg-gray-500', 'cursor-not-allowed');
 
             } else {
                 errorEl.textContent = 'Geolocation is not supported by this browser.';
-                portalStatusEl.textContent = 'Portal is INACTIVE: Browser unsupported.';
-                portalStatusEl.className = 'text-red-500 font-bold';
             }
         }
-        
         function stopSharing() {
             if (rtdbWatchId !== null) {
                 navigator.geolocation.clearWatch(rtdbWatchId);
                 rtdbWatchId = null;
-                portalStatusEl.textContent = 'Portal is Stopped.';
+                portalStatusEl.textContent = 'Location Sharing Stopped.';
                 portalStatusEl.className = 'text-red-500 font-bold';
                 
-                document.getElementById('start-btn').classList.remove('bg-gray-500', 'cursor-not-allowed');
-                document.getElementById('start-btn').classList.add('bg-green-600', 'hover:bg-green-700');
+                document.getElementById('start-btn').classList.replace('bg-gray-500', 'bg-green-600');
+                document.getElementById('stop-btn').classList.replace('bg-red-500', 'bg-gray-500');
                 document.getElementById('start-btn').textContent = 'Start Sharing';
-
-                document.getElementById('stop-btn').classList.remove('bg-red-500', 'hover:bg-red-600');
-                document.getElementById('stop-btn').classList.add('bg-gray-500', 'cursor-not-allowed');
             }
-        }
-
-        // --- REAL-TIME DATA LISTENER (For viewing location of the Teacher 'Ashraf_Wagoora') ---
-
-        function setupDataListener() {
-            // We listen for the specific 'Ashraf_Wagoora' device ID here for the shared view
-            const teacherLocationRef = dbRef(rtdb, 'pethgam/anonymous-device'); // Placeholder for demonstration if no one is logged in
-
-            dbOnValue(teacherLocationRef, (snapshot) => {
-                const remoteData = snapshot.val();
-                
-                if (remoteData && remoteData.latitude) {
-                    // Display the remote location data
-                    remoteDisplayEl.innerHTML = `
-                        <div class="text-xs font-semibold text-gray-500 mb-1">SHARED LOCATION (From Anonymous Device)</div>
-                        <p><strong>Latitude:</strong> ${remoteData.latitude.toFixed(6)}</p>
-                        <p><strong>Longitude:</strong> ${remoteData.longitude.toFixed(6)}</p>
-                        <p><strong>Accuracy:</strong> ${remoteData.accuracy.toFixed(2)} meters</p>
-                        <p><strong>Last Shared:</strong> ${remoteData.timestamp}</p>
-                    `;
-                    
-                    // Update the Google Maps link
-                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${remoteData.latitude},${remoteData.longitude}`;
-                    mapLinkEl.href = mapUrl;
-                    mapLinkEl.classList.remove('hidden');
-                    mapLinkEl.textContent = 'View Remote Location on Google Maps';
-
-                } else {
-                    remoteDisplayEl.innerHTML = '<div class="text-red-400">No shared location data found in the database.</div>';
-                    mapLinkEl.classList.add('hidden');
-                }
-            }, {
-                onlyOnce: false
-            });
-        }
-
-
-        // --- INITIALIZATION ---
-
-        window.onload = function() {
-            initAuth();
-            
-            // Attach event listeners for the Assignment Portal view
-            document.getElementById('start-btn').addEventListener('click', startSharing);
-            document.getElementById('stop-btn').addEventListener('click', stopSharing);
-            document.getElementById('stop-btn').classList.add('bg-gray-500', 'cursor-not-allowed');
-
-            // Attach event listener for Login
-            loginFormEl.addEventListener('submit', handleLogin);
         }
     </script>
     <style>
@@ -294,7 +696,7 @@
             background-color: #2d3748; /* Darker card background */
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
         }
-        .input-style {
+        .input-style, .select-style {
             background-color: #4a5568;
             border-color: #4a5568;
             color: #e2e8f0;
@@ -305,13 +707,20 @@
         .shadow-soft {
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.15);
         }
+        .nav-button {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .nav-button.active {
+            border-bottom: 3px solid #f6e05e;
+            color: #f6e05e;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8 min-h-screen flex items-start justify-center">
 
-    <div class="w-full max-w-md space-y-6">
+    <div class="w-full max-w-2xl space-y-6">
 
-        <!-- Main Header -->
         <header class="text-center mb-6">
             <div class="text-4xl title-glow mb-2">
                 <span class="text-yellow-400">❄️</span> GPS Pethgam Wagoora Assignment Portal <span class="text-yellow-400">🏆</span>
@@ -319,7 +728,6 @@
             <p id="error-message" class="text-sm text-red-500 mt-2"></p>
         </header>
 
-        <!-- --- LOGIN CONTAINER --- -->
         <div id="login-container" class="card p-6 rounded-xl hidden">
             <h2 class="text-2xl font-semibold text-gray-200 mb-6 border-b border-gray-600 pb-2">Portal Login</h2>
             
@@ -327,16 +735,13 @@
                 
                 <div>
                     <label for="role-select" class="block text-sm font-medium text-gray-400 mb-1">Login As:</label>
-                    <select id="role-select" class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500">
-                        <option value="">-- Select Role --</option>
-                        <option value="Student">Student</option>
-                        <option value="Teacher">Teacher</option>
-                    </select>
+                    <select id="role-select" class="w-full px-4 py-3 rounded-lg select-style border focus:ring-yellow-500 focus:border-yellow-500">
+                        </select>
                 </div>
 
                 <div>
-                    <label for="username-input" class="block text-sm font-medium text-gray-400 mb-1">Username / Roll No:</label>
-                    <input type="text" id="username-input" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="e.g., Ashraf_Wagoora or 1234">
+                    <label for="username-input" class="block text-sm font-medium text-gray-400 mb-1">Username:</label>
+                    <input type="text" id="username-input" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="e.g., Admin_Pethgam or Student101">
                 </div>
 
                 <div>
@@ -349,129 +754,308 @@
                 </button>
             </form>
             <p class="text-xs text-gray-500 mt-4 text-center">
-                *For Demo: Use Role=Teacher, Username=Ashraf\_Wagoora, PIN=1234
+                <button id="show-signup-btn" class="text-yellow-400 hover:text-yellow-300 font-semibold">
+                    New Student? Click here to Sign Up.
+                </button>
+            </p>
+            <p class="text-xs text-gray-500 mt-2 text-center">
+                *Demo Admin: Admin\_Pethgam / 0000
             </p>
         </div>
-
-
-        <!-- --- ASSIGNMENT PORTAL CONTAINER (Hidden until login) --- -->
-        <div id="assignment-portal-container" class="space-y-6 hidden">
+        
+        <div id="student-signup-container" class="card p-6 rounded-xl hidden">
+            <h2 class="text-2xl font-semibold text-gray-200 mb-6 border-b border-gray-600 pb-2">Student Sign Up</h2>
+            <p id="signup-error-message" class="text-sm text-red-500 mb-4"></p>
             
-            <!-- Welcome/Status Card -->
-            <div class="card p-4 rounded-xl text-center">
-                <p id="welcome-message" class="text-lg font-semibold text-yellow-400 mb-2"></p>
-                <p id="portal-status" class="text-base text-blue-400 font-bold"></p>
-            </div>
-
-            <!-- Control Sharing -->
-            <div class="card p-6 rounded-xl">
-                <h2 class="text-xl font-semibold text-gray-200 mb-4">Control Sharing</h2>
-                <p class="text-sm text-gray-400 mb-4">
-                    Click 'Start Sharing' to continuously upload this device's current location to the database.
-                </p>
-                <div class="flex space-x-4">
-                    <button id="start-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 bg-green-600 text-white hover:bg-green-700 shadow-soft">
-                        Start Sharing
-                    </button>
-                    <button id="stop-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 text-white shadow-soft">
-                        Stop Sharing
-                    </button>
+            <form id="student-signup-form" class="space-y-4">
+                
+                <div>
+                    <label for="student-signup-username" class="block text-sm font-medium text-gray-400 mb-1">Username / Roll No:</label>
+                    <input type="text" id="student-signup-username" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="Choose a Username">
                 </div>
-            </div>
 
-            <!-- Local Device Location Display -->
-            <div class="card p-6 rounded-xl">
-                <h2 class="text-xl font-semibold text-gray-200 mb-4">Your Device Location</h2>
-                <div id="location-display" class="text-sm text-gray-400 space-y-1">
-                    <p>Location data will appear here once sharing starts.</p>
-                </div>
-            </div>
-
-            <!-- Remote (Shared) Location Display -->
-            <div class="card p-6 rounded-xl">
-                <h2 class="text-xl font-semibold text-gray-200 mb-4">Remote Shared Location</h2>
-                <div id="remote-location-display" class="text-sm text-gray-400 space-y-1 mb-4">
-                    <div class="text-blue-400">Waiting for real-time data from the database...</div>
+                <div>
+                    <label for="student-signup-pin" class="block text-sm font-medium text-gray-400 mb-1">Password / PIN:</label>
+                    <input type="password" id="student-signup-pin" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="Choose a PIN (e.g., 1111)">
                 </div>
                 
-                <a id="map-link" href="#" target="_blank" class="hidden text-center block w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-200 shadow-soft mt-4">
-                    View Remote Location on Google Maps
-                </a>
-            </div>
-        </div>
-        
-        <!-- Instruction Footer -->
-        <footer class="text-center text-xs text-gray-500 pt-4">
-            <p>Portal powered by Firebase Authentication & Realtime Database.</p>
-        </footer>
-
-    </div>
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                    <!-- Header and Status -->
-        <header class="text-center">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Pethgam Location Portal</h1>
-            <p id="portal-status" class="text-lg text-blue-600 font-bold"></p>
-            <p id="error-message" class="text-sm text-red-500 mt-2"></p>
-        </header>
-
-        <!-- Control Panel -->
-        <div class="card bg-white p-6 rounded-xl border border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Control Sharing</h2>
-            <p class="text-sm text-gray-500 mb-4">
-                Click 'Start Sharing' to continuously upload this device's current location to the database.
+                <div>
+                    <label for="student-signup-class" class="block text-sm font-medium text-gray-400 mb-1">Class:</label>
+                    <select id="student-signup-class" required class="w-full px-4 py-3 rounded-lg select-style border focus:ring-yellow-500 focus:border-yellow-500">
+                        </select>
+                </div>
+                
+                <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold transition duration-200 bg-green-500 text-white hover:bg-green-600 shadow-soft">
+                    Register
+                </button>
+            </form>
+            <p class="text-xs text-gray-500 mt-4 text-center">
+                <button id="back-to-login-btn" class="text-blue-400 hover:text-blue-300 font-semibold">
+                    Already Registered? Back to Login.
+                </button>
             </p>
-            <div class="flex space-x-4">
-                <button id="start-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 bg-green-600 text-white hover:bg-green-700 shadow-soft">
-                    Start Sharing
-                </button>
-                <button id="stop-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 text-white shadow-soft">
-                    Stop Sharing
-                </button>
-            </div>
         </div>
 
-        <!-- Local Device Location Display -->
-        <div class="card bg-white p-6 rounded-xl border border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Device Location</h2>
-            <div id="location-display" class="text-sm text-gray-600 space-y-1">
-                <p>Location data will appear here once sharing starts.</p>
-            </div>
-        </div>
 
-        <!-- Remote (Shared) Location Display -->
-        <div class="card bg-white p-6 rounded-xl border border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Remote Shared Location</h2>
-            <div id="remote-location-display" class="text-sm text-gray-600 space-y-1 mb-4">
-                <div class="text-blue-500">Waiting for real-time data from the database...</div>
+        <div id="assignment-portal-container" class="space-y-6 hidden">
+            
+            <div class="card p-4 rounded-xl text-center flex justify-between items-center">
+                <p id="welcome-message" class="text-lg font-semibold text-yellow-400"></p>
+                <button id="logout-btn" class="px-4 py-2 rounded-lg font-semibold text-sm transition duration-200 bg-red-700 text-white hover:bg-red-800 shadow-soft">
+                    Logout
+                </button>
+            </div>
+
+            <div class="card p-2 rounded-xl">
+                <div class="flex justify-between">
+                    <button id="nav-assignments" onclick="showView('assignments')" class="nav-button flex-1 text-center py-2 text-gray-400 font-semibold active">Assignments</button>
+                    <button id="nav-leaderboard" onclick="showView('leaderboard')" class="nav-button flex-1 text-center py-2 text-gray-400 font-semibold">Leaderboard</button>
+                    <button id="nav-location" onclick="showView('location')" class="nav-button flex-1 text-center py-2 text-gray-400 font-semibold">Live GPS</button>
+                    <button id="nav-user-management" onclick="showView('user-management')" class="nav-button flex-1 text-center py-2 text-gray-400 font-semibold hidden">Users</button>
+                </div>
             </div>
             
-            <a id="map-link" href="#" target="_blank" class="hidden text-center block w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-200 shadow-soft mt-4">
-                View Remote Location on Google Maps
-            </a>
+            <script>
+                // Simple Navigation Toggle
+                function showView(viewId) {
+                    const views = ['assignments-view', 'leaderboard-view', 'location-view', 'user-management-view'];
+                    views.forEach(id => document.getElementById(id).classList.add('hidden'));
+                    document.getElementById(viewId + '-view').classList.remove('hidden');
+                    
+                    document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+                    document.getElementById('nav-' + viewId).classList.add('active');
+                    
+                    // Show/Hide Admin-only nav item
+                    if (role === 'Admin') {
+                        document.getElementById('nav-user-management').classList.remove('hidden');
+                    }
+                }
+            </script>
+            
+            <div id="assignments-view">
+                
+                <div id="teacher-view" class="space-y-6 hidden">
+                    <div class="card p-6 rounded-xl border-l-4 border-blue-500">
+                        <h2 class="text-2xl font-bold text-blue-400 mb-4">Add New Assignment</h2>
+                        
+                        <form id="assignment-form" class="space-y-4">
+                            <div class="flex space-x-4">
+                                <div class="flex-1">
+                                    <label for="assignment-class-select" class="block text-sm font-medium text-gray-400 mb-1">Class:</label>
+                                    <select id="assignment-class-select" required class="w-full px-4 py-3 rounded-lg select-style"></select>
+                                </div>
+                                <div class="flex-1">
+                                    <label for="assignment-subject-select" class="block text-sm font-medium text-gray-400 mb-1">Subject:</label>
+                                    <select id="assignment-subject-select" required class="w-full px-4 py-3 rounded-lg select-style"></select>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label for="assignment-question" class="block text-sm font-medium text-gray-400 mb-1">Question/Task:</label>
+                                <textarea id="assignment-question" rows="3" required class="w-full px-4 py-3 rounded-lg input-style" placeholder="Type the assignment question here..."></textarea>
+                            </div>
+
+                            <div>
+                                <label for="assignment-correct-option" class="block text-sm font-medium text-gray-400 mb-1">Correct Answer (for grading):</label>
+                                <input type="text" id="assignment-correct-option" required class="w-full px-4 py-3 rounded-lg input-style" placeholder="e.g., Photosynthesis (or specific word/number)">
+                            </div>
+                            
+                            <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-soft">
+                                Publish Assignment
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="student-view" class="space-y-6 hidden">
+                     <h2 class="text-2xl font-bold text-yellow-400 mb-4">My Pending Assignments</h2>
+                     <div id="assignment-list">
+                         <p class="text-center text-gray-400">Loading assignments...</p>
+                     </div>
+                </div>
+            </div>
+
+            <div id="leaderboard-view" class="hidden">
+                <h2 class="text-2xl font-bold text-green-400 mb-4">Assignment Leaderboard</h2>
+                <div class="card p-4 rounded-xl overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-600">
+                        <thead>
+                            <tr class="text-left text-gray-400 text-xs uppercase tracking-wider">
+                                <th class="p-3">Rank</th>
+                                <th class="p-3">Student</th>
+                                <th class="p-3 text-right">Total Score</th>
+                                <th class="p-3 text-right">Assignments</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-table-body" class="divide-y divide-gray-700">
+                            <tr><td colspan="4" class="text-center p-4 text-gray-500">Loading data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+            <div id="location-view" class="hidden space-y-6">
+                <div class="card p-4 rounded-xl text-center">
+                    <p id="portal-status" class="text-base text-red-500 font-bold">Portal is Stopped.</p>
+                </div>
+                
+                <div class="card p-6 rounded-xl" id="location-controls">
+                    <h2 class="text-xl font-semibold text-gray-200 mb-4">Control Location Sharing</h2>
+                    <p class="text-sm text-gray-400 mb-4">
+                        Admin only: Share your device's live location (visible to all logged-in users).
+                    </p>
+                    <div class="flex space-x-4">
+                        <button id="start-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 bg-green-600 text-white hover:bg-green-700 shadow-soft">
+                            Start Sharing
+                        </button>
+                        <button id="stop-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 text-white shadow-soft">
+                            Stop Sharing
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card p-6 rounded-xl">
+                    <h2 class="text-xl font-semibold text-gray-200 mb-4">Remote Shared Location (Admin)</h2>
+                    <div id="remote-location-display" class="text-sm text-gray-400 space-y-1 mb-4">
+                        <div class="text-blue-400">Waiting for Admin live data...</div>
+                    </div>
+                    
+                    <a id="map-link" href="#" target="_blank" class="hidden text-center block w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-200 shadow-soft mt-4">
+                        View Location on Google Maps
+                    </a>
+                </div>
+            </div>
+            
+            
+            <div id="user-management-view" class="hidden space-y-6">
+                <h2 class="text-2xl font-bold text-red-400 mb-4">Admin: User Management</h2>
+
+                <div class="card p-6 rounded-xl border-l-4 border-red-500">
+                    <h3 class="text-xl font-semibold text-gray-200 mb-4">Add Teacher or Student</h3>
+                    <form id="add-user-form" class="space-y-3">
+                        <input type="text" id="add-username" required class="w-full px-4 py-2 rounded-lg input-style" placeholder="Username (e.g., NewTeacher)">
+                        <input type="password" id="add-pin" required class="w-full px-4 py-2 rounded-lg input-style" placeholder="PIN/Password">
+                        
+                        <div class="flex space-x-3">
+                            <select id="add-role" required class="flex-1 px-4 py-2 rounded-lg select-style">
+                                <option value="">-- Select Role --</option>
+                                <option value="Teacher">Teacher</option>
+                                <option value="Student">Student</option>
+                            </select>
+                            <select id="add-class" class="flex-1 px-4 py-2 rounded-lg select-style">
+                                </select>
+                        </div>
+                        
+                        <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 shadow-soft">
+                            Add User
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="card p-4 rounded-xl overflow-x-auto">
+                    <h3 class="text-xl font-semibold text-gray-200 mb-4">Existing Users</h3>
+                    <table class="min-w-full divide-y divide-gray-600">
+                        <thead>
+                            <tr class="text-left text-gray-400 text-xs uppercase tracking-wider">
+                                <th class="p-3">Username</th>
+                                <th class="p-3">Role</th>
+                                <th class="p-3">Class</th>
+                                <th class="p-3">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-list-table-body" class="divide-y divide-gray-700">
+                            <tr><td colspan="4" class="text-center p-4 text-gray-500">Loading users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
         </div>
         
-        <!-- Instruction Footer -->
         <footer class="text-center text-xs text-gray-500 pt-4">
-            <p>This portal is powered by Firebase Realtime Database for real-time, cross-device synchronization.</p>
-            <p>Database URL: wap-ps-pethgam-default-rtdb.firebaseio.com</p>
+            <p>Portal powered by Firebase Firestore & Realtime Database.</p>
         </footer>
 
     </div>
 </body>
 </html>
-                    .        .                    
+```eof
+
+### How to Demo the New Features:
+
+1.  **Log in as Admin:**
+    * **Role:** `Admin`, **Username:** `Admin_Pethgam`, **PIN:** `0000`
+    * The **"Users"** tab will appear in the navigation bar.
+2.  **Add a Teacher/Student (Admin View):**
+    * Go to the **Users** tab.
+    * Use the **"Add Teacher or Student"** form to create a new user (e.g., Role: `Teacher`, Username: `NewTeacher`, PIN: `2024`, Class: `2nd`).
+    * Click **"Add User."** The new user will appear in the list below and can be deleted from there.
+3.  **Student Sign-Up:**
+    * **Logout** from Admin.
+    * On the login page, click **"New Student? Click here to Sign Up."**
+    * Fill out the form (Username, PIN, **Class 1st-5th**). The new student is automatically added to the database.
+4.  **Teacher/Admin Assignment Flow:**
+    * Log in as the newly created `Teacher` (NewTeacher/2024).
+    * Go to the **Assignments** tab and use the form to publish an assignment for a specific class (e.g., Class: `2nd`).
+5.  **Student Assignment Flow:**
+    * Log in as a `Student` who belongs to the Class you targeted (e.g., the student created in step 3).
+    * The assignment should now appear in their **Assignments** list.
+
+This structure fully supports your requested user management, sign-up flow, and the expanded class list.
+
+
+
+
+
+
+
+
+
+
+
+                                
+                 
+            if (role !== 'Student') return;
+
+            const studentClass = sessionStorage.getItem('portal_class');
+            
+            // Students only see assignments for their class
+            const filteredAssignments = assignments.filter(a => 
+                a.class === studentClass
+            );
+
+            if (filteredAssignments.length === 0) {
+                assignmentListEl.innerHTML = '<p class="text-center text-gray-400">No assignments available for your class.</p>';
+                return;
+            }
+
+            assignmentListEl.innerHTML = filteredAssignments.map(a => `
+                <div id="assignment-${a.id}" class="card p-4 mb-3 border-l-4 border-yellow-500">
+                    <p class="font-bold text-lg text-yellow-400">${a.class} / ${a.subject}</p>
+                    <p class="text-gray-300 mb-2">${a.question}</p>
+                    <input type="text" id="answer-${a.id}" class="w-full px-3 py-2 rounded input-style mb-2" placeholder="Your Answer">
+                    <button data-id="${a.id}" data-answer="${a.correctAnswer}" class="submit-assignment-btn w-full bg-teal-500 text-white py-2 rounded hover:bg-teal-600 transition">Submit Answer</button>
+                    <p id="feedback-${a.id}" class="mt-2 text-sm font-semibold"></p>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.submit-assignment-btn').forEach(button => {
+                button.addEventListener('click', handleStudentSubmission);
+            });
+        }
+        
+        async function handleStudentSubmission(event) {
+            const assignmentId = event.target.getAttribute('data-id');
+            const correctAnswer = event.target.getAttribute('data-answer');
+            const studentAnswerEl = document.getElementById(`answer-${assignmentId}`);
+            const feedbackEl = document.getElementById(`feedback-${assignmentId}`);
+            const studentAnswer = studentAnswerEl.value.trim();
+            
+            if (!studentAnswer) {
+                feedbackEl.textContent = 'Please provide an answer.';
+                feedbackEl.className = 'mt-2 text-sm font-semibold text-yellow-400';
+                return;
+            }
+
+          
