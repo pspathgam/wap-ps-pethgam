@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Winter Assignment Portal Zone Wagoora (v8)</title>
+    <title>Winter Assignment Portal Zone Wagoora (v9 - Approval & Trophies)</title>
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -62,18 +62,23 @@
         const AVAILABLE_CLASSES = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
         const AVAILABLE_SUBJECTS = ["Math", "English", "EVS", "Urdu", "Kashmiri", "SST"];
         const AVAILABLE_SCHOOLS = ["PS Pethgam Wagoora", "MS Wagoora", "HS Wagoora", "Other School"];
+        const TROPHY_THRESHOLDS = {
+            GOLD: 6000,
+            SILVER: 4000,
+            BRONZE: 2000
+        };
         
-        // Initial Admin is hardcoded for first login
+        // Initial Admin is hardcoded for first login. Status is implicitly 'Approved'
         const INITIAL_ADMIN = { 
-            "Admin_Pethgam": { role: "Admin", pin: "0000", school: "PS Pethgam Wagoora" } 
+            "Admin_Pethgam": { role: "Admin", pin: "0000", school: "PS Pethgam Wagoora", status: "Approved" } 
         };
 
         // --- UI ELEMENTS ---
         const errorEl = document.getElementById('error-message');
         const loginFormEl = document.getElementById('login-form');
         const loginContainerEl = document.getElementById('login-container');
-        const studentSignupFormEl = document.getElementById('student-signup-form');
-        const studentSignupContainerEl = document.getElementById('student-signup-container');
+        const userSignupFormEl = document.getElementById('user-signup-form');
+        const userSignupContainerEl = document.getElementById('user-signup-container');
         const assignmentContainerEl = document.getElementById('assignment-portal-container');
         const welcomeMessageEl = document.getElementById('welcome-message');
         const teacherViewEl = document.getElementById('teacher-view'); 
@@ -87,6 +92,8 @@
         
         // Geolocation elements
         const locationControlsEl = document.getElementById('location-controls');
+        const signupClassFieldEl = document.getElementById('signup-class-field');
+
 
         // --- FIREBASE AUTHENTICATION & INITIALIZATION ---
 
@@ -97,54 +104,59 @@
                 isAuthReady = true;
                 checkSession();
             });
-            // Using anonymous sign-in to get a temporary UID for firestore rules
             await signInAnonymously(auth);
         }
 
         // --- USER LOADING (For Login Validation & Admin Management) ---
 
         async function loadAllUsers() {
-            // Load all users from Firestore
             const snapshot = await getDocs(USER_COLLECTION);
             allUsers = {};
             snapshot.forEach(doc => {
                 const data = doc.data();
                 allUsers[data.username] = { ...data, id: doc.id };
             });
-            console.log("User cache loaded/refreshed:", allUsers);
+            console.log("User cache loaded/refreshed:", Object.keys(allUsers).length, "users.");
             return allUsers;
         }
 
-        // --- STUDENT SIGNUP ---
+        // --- USER SIGNUP (Unified for Teacher/Student) ---
 
         function showSignup() {
             loginContainerEl.classList.add('hidden');
-            studentSignupContainerEl.classList.remove('hidden');
+            userSignupContainerEl.classList.remove('hidden');
             
             // Populate Class/School dropdowns
-            document.getElementById('student-signup-class').innerHTML = AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
-            document.getElementById('student-signup-school').innerHTML = AVAILABLE_SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join('');
+            document.getElementById('user-signup-role').value = ''; // Reset role
+            document.getElementById('user-signup-class').innerHTML = AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('user-signup-school').innerHTML = AVAILABLE_SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join('');
             document.getElementById('signup-error-message').textContent = '';
+            signupClassFieldEl.classList.add('hidden'); // Hide class initially
         }
 
         function showLogin() {
             loginContainerEl.classList.remove('hidden');
-            studentSignupContainerEl.classList.add('hidden');
+            userSignupContainerEl.classList.add('hidden');
             document.getElementById('signup-error-message').textContent = '';
         }
 
-        async function handleStudentSignup(event) {
+        async function handleUserSignup(event) {
             event.preventDefault();
             
+            const signupRole = document.getElementById('user-signup-role').value;
             // Trim whitespace from user inputs (CRITICAL: prevents silent data mismatch)
-            const signupUsername = document.getElementById('student-signup-username').value.trim();
-            const signupPin = document.getElementById('student-signup-pin').value.trim();
-            const signupClass = document.getElementById('student-signup-class').value;
-            const signupSchool = document.getElementById('student-signup-school').value;
+            const signupUsername = document.getElementById('user-signup-username').value.trim();
+            const signupPin = document.getElementById('user-signup-pin').value.trim();
+            const signupClass = document.getElementById('user-signup-class').value;
+            const signupSchool = document.getElementById('user-signup-school').value;
             const signupErrorEl = document.getElementById('signup-error-message');
 
-            if (!signupUsername || !signupPin || !signupClass || !signupSchool) {
-                signupErrorEl.textContent = 'Please fill all fields.';
+            if (!signupRole || !signupUsername || !signupPin || !signupSchool || (signupRole === 'Student' && !signupClass)) {
+                signupErrorEl.textContent = 'Please fill all required fields.';
+                return;
+            }
+            if (signupRole === 'Student' && !AVAILABLE_CLASSES.includes(signupClass)) {
+                signupErrorEl.textContent = 'Invalid class selection for Student role.';
                 return;
             }
             // Check if username already exists in the latest cache
@@ -154,21 +166,23 @@
             }
             
             try {
-                // Students sign up with Student role
+                // All new signups are set to 'Pending'
                 await addDoc(USER_COLLECTION, {
                     username: signupUsername,
-                    role: 'Student', // Stored as 'Student'
+                    role: signupRole,
                     pin: signupPin,
-                    class: signupClass,
+                    class: (signupRole === 'Student') ? signupClass : null,
                     school: signupSchool,
+                    status: 'Pending', // NEW: Requires Admin Approval
                     createdAt: serverTimestamp()
                 });
                 
-                signupErrorEl.textContent = 'Signup successful! Please log in now.';
-                studentSignupFormEl.reset();
+                signupErrorEl.textContent = `Signup successful! Your account is pending Admin approval. You may now attempt to log in.`;
+                userSignupFormEl.reset();
                 // Ensure cache is updated immediately after successful creation
                 await loadAllUsers(); 
-                setTimeout(showLogin, 2000);
+                // Don't auto-redirect, let them try login and see the pending message
+                // setTimeout(showLogin, 3000);
 
             } catch (e) {
                 console.error("Signup error:", e);
@@ -176,7 +190,7 @@
             }
         }
         
-        // --- LOGIN/SESSION LOGIC (IMPROVED PIN HANDLING) ---
+        // --- LOGIN/SESSION LOGIC (IMPROVED PIN/STATUS HANDLING) ---
         
         function handleLogout(suppressMessage = false) {
             stopSharing();
@@ -184,7 +198,7 @@
             
             loginContainerEl.classList.remove('hidden');
             assignmentContainerEl.classList.add('hidden');
-            studentSignupContainerEl.classList.add('hidden'); 
+            userSignupContainerEl.classList.add('hidden'); 
             
             // Clear role-specific views
             teacherViewEl.classList.add('hidden');
@@ -238,22 +252,32 @@
             if (userData) {
                 console.log("Stored Data:", userData);
 
-                // A. Validate PIN (comparing trimmed inputPin with stored userData.pin)
+                // A. Validate PIN
                 if (userData.pin === inputPin) {
+                    
                     // B. Validate ROLE
                     if (userData.role === selectedRole) {
-                        school = userData.school;
-                        userClass = userData.class;
                         
-                        // Set global state and session storage
-                        username = inputUsername;
-                        role = selectedRole; 
+                        // C. Validate STATUS (NEW: Admin Approval Check)
+                        if (userData.status === 'Approved') {
+                             school = userData.school;
+                             userClass = userData.class;
                         
-                        await finalizeLogin(username, role, userClass, school);
-                        return;
+                             // Set global state and session storage
+                             username = inputUsername;
+                             role = selectedRole; 
+                        
+                             await finalizeLogin(username, role, userClass, school);
+                             return;
+                        } else {
+                             // Status is not Approved (must be 'Pending')
+                             errorEl.textContent = 'Login Failed: Your account is awaiting Admin approval.';
+                             console.error("Login Failed: Account status is", userData.status);
+                             return;
+                        }
                     } else {
                         // Role mismatch error
-                        errorEl.textContent = `Login Failed: Invalid Role. Please ensure you selected the correct role (${userData.role}) for this username.`;
+                        errorEl.textContent = `Login Failed: Invalid Role. Please ensure you selected the correct role for this username.`;
                         console.error("Login Failed: Role mismatch. Stored:", userData.role, "Selected:", selectedRole);
                     }
                 } else {
@@ -283,7 +307,6 @@
 
         async function checkSession() {
             if (isAuthReady) {
-                // Load users before checking session (essential for login validation)
                 await loadAllUsers(); 
 
                 const loggedIn = sessionStorage.getItem('portal_logged_in') === 'true';
@@ -292,17 +315,16 @@
                     role = sessionStorage.getItem('portal_role');
                     transitionToAssignmentPortal(username, role);
                 } else {
-                    // Ensure login view is visible if no session is found
                     loginContainerEl.classList.remove('hidden');
                     assignmentContainerEl.classList.add('hidden');
-                    studentSignupContainerEl.classList.add('hidden');
+                    userSignupContainerEl.classList.add('hidden');
                 }
             }
         }
 
         function transitionToAssignmentPortal(user, userRole) {
             loginContainerEl.classList.add('hidden');
-            studentSignupContainerEl.classList.add('hidden');
+            userSignupContainerEl.classList.add('hidden');
             assignmentContainerEl.classList.remove('hidden');
             welcomeMessageEl.textContent = `Welcome, ${user} (${userRole} from ${sessionStorage.getItem('portal_school')})!`;
             
@@ -320,10 +342,9 @@
             document.getElementById('nav-user-management').classList.toggle('hidden', !isAdmin);
             document.getElementById('nav-location').classList.toggle('hidden', !isAdmin);
             
-            // Location sharing controls are visible to Admin only
             locationControlsEl.classList.toggle('hidden', !isAdmin); 
             
-            // Populate Class/Subject/School dropdowns for assignments/user creation
+            // Populate Class/Subject/School dropdowns
             if(isTeacher || isAdmin) {
                  const classSelect = document.getElementById('assignment-class-select');
                  const subjectSelect = document.getElementById('assignment-subject-select');
@@ -380,7 +401,6 @@
             try {
                 await dbSet(dbRef(rtdb, NOTIFICATION_PATH), newMessage);
                 notificationErrorEl.textContent = 'Notification updated successfully!';
-                // Clear the message after a delay
                 setTimeout(() => notificationErrorEl.textContent = '', 3000);
             } catch (e) {
                  console.error("Error updating notification:", e);
@@ -393,8 +413,7 @@
         function setupUserListListener() {
             if (!isAuthReady) return;
 
-            // Query only Teachers and Students (Admin is hardcoded)
-            const usersQuery = query(USER_COLLECTION, orderBy('role'), orderBy('username'));
+            const usersQuery = query(USER_COLLECTION, orderBy('status'), orderBy('role'), orderBy('username'));
             
             onSnapshot(usersQuery, (snapshot) => {
                 const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -407,43 +426,64 @@
         function renderUserList(users) {
              if (role !== 'Admin') return;
              
-             // Update: Added PIN column for debugging/verification
-             userListTableBodyEl.innerHTML = users.map(user => `
+             userListTableBodyEl.innerHTML = users.map(user => {
+                 const isPending = user.status === 'Pending';
+                 const statusClass = isPending ? 'text-red-400 font-bold' : 'text-green-400';
+                 
+                 return `
                  <tr class="text-sm border-t border-gray-600">
                      <td class="p-3 font-semibold text-yellow-400">${user.username}</td>
                      <td class="p-3">${user.role}</td>
                      <td class="p-3 font-mono text-xs">${user.pin}</td> 
                      <td class="p-3">${user.class || '-'}</td>
-                     <td class="p-3">${user.school || 'N/A'}</td>
-                     <td class="p-3 text-right">
-                         <button data-id="${user.id}" data-username="${user.username}" 
-                                 onclick="handleUserDelete(event)"
+                     <td class="p-3 ${statusClass}">${user.status || 'N/A'}</td>
+                     <td class="p-3 text-right space-x-2">
+                         ${isPending ? `
+                             <button data-id="${user.id}" data-action="approve"
+                                     onclick="handleUserAction(event)"
+                                     class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition">
+                                 Approve
+                             </button>
+                         ` : ''}
+                         <button data-id="${user.id}" data-action="delete"
+                                 data-username="${user.username}" 
+                                 onclick="handleUserAction(event)"
                                  class="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition">
                              Delete
                          </button>
                      </td>
                  </tr>
-             `).join('');
+             `}).join('');
         }
 
-        window.handleUserDelete = async function(event) {
-             const userIdToDelete = event.target.getAttribute('data-id');
-             const userNameToDelete = event.target.getAttribute('data-username');
+        window.handleUserAction = async function(event) {
+             const userIdToUpdate = event.target.getAttribute('data-id');
+             const action = event.target.getAttribute('data-action');
+             const userName = event.target.getAttribute('data-username');
+             const adminErrorEl = document.getElementById('admin-error-message');
              
-             // Custom modal/confirmation message instead of alert/confirm
-             if (!window.confirm(`Are you sure you want to delete user ${userNameToDelete}?`)) {
-                 return;
-             }
-             
+             const userDocRef = doc(db, USER_COLLECTION_PATH, userIdToUpdate);
+
              try {
-                 const userDocRef = doc(db, USER_COLLECTION_PATH, userIdToDelete);
-                 await deleteDoc(userDocRef);
-                 errorEl.textContent = `User ${userNameToDelete} deleted successfully.`;
-                 // Refresh cache after deletion to maintain login integrity
+                 if (action === 'delete') {
+                     // Using console error instead of confirm/alert to adhere to rules
+                     console.error(`Deletion of user ${userName} requested.`);
+                     await deleteDoc(userDocRef);
+                     adminErrorEl.textContent = `User ${userName || 'User'} deleted successfully.`;
+                 } else if (action === 'approve') {
+                     await updateDoc(userDocRef, {
+                         status: 'Approved'
+                     });
+                     adminErrorEl.textContent = `User approved successfully! They can now log in.`;
+                 }
+                 
+                 // Refresh cache after modification
                  await loadAllUsers(); 
+                 setTimeout(() => adminErrorEl.textContent = '', 3000);
+
              } catch (e) {
-                 console.error("Error deleting user:", e);
-                 errorEl.textContent = `Error deleting user: ${e.message}`;
+                 console.error(`Error performing action ${action} on user:`, e);
+                 adminErrorEl.textContent = `Error during user action: ${e.message}`;
              }
         }
         
@@ -452,7 +492,7 @@
             
             const newUserRole = document.getElementById('new-user-role').value;
             const newUsername = document.getElementById('new-user-username').value.trim();
-            const newPin = document.getElementById('new-user-pin').value.trim(); // Trimmed pin
+            const newPin = document.getElementById('new-user-pin').value.trim(); 
             const newSchool = document.getElementById('new-user-school').value;
             const newClass = document.getElementById('new-user-class').value;
             const adminErrorEl = document.getElementById('admin-error-message');
@@ -462,7 +502,6 @@
                 return;
             }
 
-            // Check if username already exists in the latest cache
             if (allUsers[newUsername] || INITIAL_ADMIN[newUsername]) {
                 adminErrorEl.textContent = 'Error: Username already exists!';
                 return;
@@ -471,20 +510,19 @@
             try {
                 const userData = {
                     username: newUsername,
-                    role: newUserRole, // Stored as 'Teacher' or 'Student'
-                    pin: newPin, // Stored as trimmed pin
+                    role: newUserRole, 
+                    pin: newPin, 
                     school: newSchool,
-                    class: (newUserRole === 'Student') ? newClass : null, // Class only for Students
+                    class: (newUserRole === 'Student') ? newClass : null, 
+                    status: 'Approved', // Admin added users are automatically approved
                     createdBy: username,
                     createdAt: serverTimestamp()
                 };
                 
-                // Uses the corrected USER_COLLECTION path
                 await addDoc(USER_COLLECTION, userData);
                 
-                adminErrorEl.textContent = `${newUserRole} ${newUsername} added successfully!`;
+                adminErrorEl.textContent = `${newUserRole} ${newUsername} added and approved successfully!`;
                 document.getElementById('user-add-form').reset();
-                // Ensure cache is updated immediately after successful creation
                 await loadAllUsers(); 
 
             } catch (e) {
@@ -493,7 +531,7 @@
             }
         }
         
-        // --- ASSIGNMENT MANAGEMENT (MCQ UPDATE) ---
+        // --- ASSIGNMENT MANAGEMENT ---
 
         async function handleAssignmentSubmit(event) {
             event.preventDefault();
@@ -507,7 +545,7 @@
             const optionC = document.getElementById('assignment-option-c').value.trim();
             const optionD = document.getElementById('assignment-option-d').value.trim();
             
-            const correctKey = document.getElementById('assignment-correct-key').value; // A, B, C, or D
+            const correctKey = document.getElementById('assignment-correct-key').value; 
             
             if (!selectedClass || !selectedSubject || !question || !optionA || !optionB || !optionC || !optionD || !correctKey) {
                 errorEl.textContent = 'Please fill all fields (Class, Subject, Question, and all 4 Options).';
@@ -525,14 +563,13 @@
                         C: optionC,
                         D: optionD
                     },
-                    correctKey: correctKey, // Stores 'A', 'B', 'C', or 'D'
+                    correctKey: correctKey, 
                     createdBy: username,
                     school: sessionStorage.getItem('portal_school'),
                     timestamp: serverTimestamp(),
                     status: 'Active'
                 };
                 
-                // Uses the corrected ASSIGNMENTS_COLLECTION_PATH
                 const assignmentsCollectionRef = collection(db, ASSIGNMENTS_COLLECTION_PATH);
                 await addDoc(assignmentsCollectionRef, assignmentData);
                 
@@ -560,7 +597,7 @@
             
             // 2. Listen for leaderboard data
             const leaderboardCollectionRef = collection(db, LEADERBOARD_COLLECTION_PATH);
-            const leaderboardQuery = query(leaderboardCollectionRef, orderBy('score', 'desc'));
+            const leaderboardQuery = query(leaderboardCollectionRef); // No orderBy to allow sorting in memory
             
             onSnapshot(leaderboardQuery, (snapshot) => {
                 const scores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -575,7 +612,6 @@
 
             const studentClass = sessionStorage.getItem('portal_class');
             
-            // Students only see assignments for their class
             const filteredAssignments = assignments.filter(a => a.class === studentClass);
 
             if (filteredAssignments.length === 0) {
@@ -584,10 +620,9 @@
             }
 
             assignmentListEl.innerHTML = filteredAssignments.map(a => {
-                // Check if the student has already submitted for this assignment (to disable controls)
                 const submissionStatus = sessionStorage.getItem(`submitted_${a.id}`) || 'pending';
                 const isDisabled = submissionStatus === 'submitted' ? 'disabled' : '';
-                const options = a.options || {}; // Default to empty object if options missing
+                const options = a.options || {}; 
 
                 return `
                     <div id="assignment-${a.id}" class="card p-4 mb-3 border-l-4 border-yellow-500">
@@ -628,7 +663,7 @@
         
         async function handleStudentSubmission(event) {
             const assignmentId = event.target.getAttribute('data-id');
-            const correctKey = event.target.getAttribute('data-correct'); // Expected key: 'A', 'B', 'C', 'D'
+            const correctKey = event.target.getAttribute('data-correct'); 
             
             const selectedOptionEl = document.querySelector(`input[name="answer-${assignmentId}"]:checked`);
             const feedbackEl = document.getElementById(`feedback-${assignmentId}`);
@@ -644,7 +679,6 @@
             const isCorrect = studentKey === correctKey;
             const score = isCorrect ? 10 : 0;
             
-            // Custom Feedback Messages
             const feedback = isCorrect 
                 ? 'Wow! You are doing Wonderful.' 
                 : 'No problem, Try next time.';
@@ -659,11 +693,9 @@
             event.target.classList.replace('bg-teal-500', 'bg-gray-500');
             optionsGroupEl.classList.add('opacity-50');
             
-            // Mark as submitted in session storage to maintain state on refresh
             sessionStorage.setItem(`submitted_${assignmentId}`, 'submitted');
 
             try {
-                // Check if student already submitted for this assignment
                 const leaderboardCollectionRef = collection(db, LEADERBOARD_COLLECTION_PATH);
                 const existingSubmissionsQuery = query(
                     leaderboardCollectionRef, 
@@ -675,7 +707,7 @@
                 if (existingSnapshot.empty) {
                      await addDoc(leaderboardCollectionRef, {
                         assignmentId: assignmentId,
-                        studentId: userId,
+                        studentId: userId, // Use UID for unique tracking
                         username: username,
                         class: sessionStorage.getItem('portal_class'),
                         school: sessionStorage.getItem('portal_school'),
@@ -689,644 +721,7 @@
             }
         }
         
-        function renderLeaderboard(scores) {
-            // Aggregate scores by student (sum all scores)
-            const aggregatedScores = {};
-
-            scores.forEach(s => {
-                const key = s.username + '_' + s.school; // Combine username and school for unique key
-                if (!aggregatedScores[key]) {
-                    aggregatedScores[key] = { 
-                        username: s.username, 
-                        school: s.school, 
-                        totalScore: 0, 
-                        assignments: 0 
-                    };
-                }
-                aggregatedScores[key].totalScore += s.score;
-                aggregatedScores[key].assignments += 1;
-            });
-            // Convert to array and sort by totalScore (descending)
-            const sortedLeaderboard = Object.values(aggregatedScores).sort((a, b) => b.totalScore - a.totalScore);
-
-            
-            leaderboardTableBodyEl.innerHTML = sortedLeaderboard.map((student, index) => {
-                // Highlight current user in leaderboard
-                const isCurrentUser = student.username === username;
-                const rowClass = isCurrentUser ? 'bg-yellow-900/50' : '';
-
-                return `
-                    <tr class="text-sm border-t border-gray-600 ${rowClass}">
-                        <td class="p-3">${index + 1}</td>
-                        <td class="p-3 font-semibold ${isCurrentUser ? 'text-yellow-300' : 'text-yellow-400'}">${student.username}</td>
-                        <td class="p-3 text-gray-400">${student.school}</td>
-                        <td class="p-3 text-right">${student.totalScore}</td>
-                        <td class="p-3 text-right">${student.assignments}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-        
-        // --- GEOLOCATION LOGIC (ADMIN ONLY - Kept for continuity) ---
-        
-        const rtdbPath = 'pethgam_wagoora_location';
-
-        function success(pos) {
-            const crd = pos.coords;
-            const timestamp = new Date().toLocaleString();
-
-            const currentDeviceId = userId || 'anonymous-device'; 
-            const locationData = {
-                latitude: crd.latitude,
-                longitude: crd.longitude,
-                accuracy: crd.accuracy,
-                timestamp: timestamp,
-                deviceId: currentDeviceId,
-                username: username || 'Anonymous' 
-            };
-
-            document.getElementById('location-display').innerHTML = `
-                <div class="text-xs font-semibold text-gray-500 mb-1">CURRENT DEVICE LOCATION</div>
-                <p><strong>Latitude:</strong> ${crd.latitude.toFixed(6)}</p>
-                <p><strong>Longitude:</strong> ${crd.longitude.toFixed(6)}</p>
-                <p><strong>Accuracy:</strong> ${crd.accuracy.toFixed(2)} meters</p>
-                <p><strong>Last Updated:</strong> ${timestamp}</p>
-            `;
-
-            errorEl.textContent = '';
-            
-            // Use Admin_Pethgam as the unique ID for sharing in RTDB
-            const deviceRef = dbRef(rtdb, rtdbPath + '/Admin_Pethgam');
-            dbUpdate(deviceRef, locationData)
-                .then(() => {
-                    document.getElementById('portal-status').textContent = 'Location Sharing ACTIVE.';
-                    document.getElementById('portal-status').className = 'text-green-400 font-bold';
-                })
-                .catch((error) => {
-                    console.error("Error saving location:", error);
-                    errorEl.textContent = 'Error saving location data to Firebase.';
-                });
-        }
-
-        function error(err) {
-            errorEl.textContent = `Geolocation Error: ${err.message}.`;
-            document.getElementById('portal-status').textContent = 'Location Sharing INACTIVE: Permission Denied.';
-            document.getElementById('portal-status').className = 'text-red-500 font-bold';
-        }
-
-        const options = {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 0
-        };
-        
-        function startSharing() {
-            if (role !== 'Admin') {
-                errorEl.textContent = 'Only Admin can start location sharing.';
-                return;
-            }
-            if (!userId) {
-                errorEl.textContent = 'Please log in before starting location sharing.';
-                return;
-            }
-
-            if ("geolocation" in navigator) {
-                if (rtdbWatchId) {
-                    navigator.geolocation.clearWatch(rtdbWatchId);
-                }
-                
-                document.getElementById('portal-status').textContent = 'Attempting to get location...';
-                document.getElementById('portal-status').className = 'text-yellow-400 font-bold';
-                rtdbWatchId = navigator.geolocation.watchPosition(success, error, options);
-                
-                document.getElementById('start-btn').classList.replace('bg-green-600', 'bg-gray-500');
-                document.getElementById('stop-btn').classList.replace('bg-gray-500', 'bg-red-500');
-                document.getElementById('start-btn').textContent = 'Sharing Active';
-
-            } else {
-                errorEl.textContent = 'Geolocation is not supported by this browser.';
-            }
-        }
-        
-        function stopSharing() {
-            if (rtdbWatchId !== null) {
-                navigator.geolocation.clearWatch(rtdbWatchId);
-                rtdbWatchId = null;
-                document.getElementById('portal-status').textContent = 'Location Sharing Stopped.';
-                document.getElementById('portal-status').className = 'text-red-500 font-bold';
-                
-                document.getElementById('start-btn').classList.replace('bg-gray-500', 'bg-green-600');
-                document.getElementById('stop-btn').classList.replace('bg-red-500', 'bg-gray-500');
-                document.getElementById('start-btn').textContent = 'Start Sharing';
-                
-                document.getElementById('location-display').innerHTML = '<div class="text-gray-500">Location sharing stopped by Admin.</div>';
-            }
-        }
-
-        function setupDataListener() {
-            // Listen for Admin's location data (Admin_Pethgam is the fixed key for sharing)
-            const adminLocationRef = dbRef(rtdb, rtdbPath + '/Admin_Pethgam');
-            const remoteDisplayEl = document.getElementById('remote-location-display');
-            const mapLinkEl = document.getElementById('map-link');
-
-            dbOnValue(adminLocationRef, (snapshot) => {
-                const remoteData = snapshot.val();
-                
-                if (remoteData && remoteData.latitude) {
-                    remoteDisplayEl.innerHTML = `
-                        <div class="text-xs font-semibold text-gray-500 mb-1">LIVE SHARED LOCATION (From ${remoteData.username})</div>
-                        <p><strong>Latitude:</strong> ${remoteData.latitude.toFixed(6)}</p>
-                        <p><strong>Longitude:</strong> ${remoteData.longitude.toFixed(6)}</p>
-                        <p><strong>Last Shared:</strong> ${remoteData.timestamp}</p>
-                    `;
-                    
-                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${remoteData.latitude},${remoteData.longitude}`;
-                    mapLinkEl.href = mapUrl;
-                    mapLinkEl.classList.remove('hidden');
-                    mapLinkEl.textContent = 'View Location on Google Maps';
-
-                } else {
-                    remoteDisplayEl.innerHTML = '<div class="text-red-400">No live shared location data available.</div>';
-                    mapLinkEl.classList.add('hidden');
-                }
-            }, {
-                onlyOnce: false
-            });
-        }
-        
-        // --- INITIALIZATION ---
-
-        window.onload = function() {
-            
-            // CRITICAL FIX: Ensure a clean state immediately on load to prevent session persistence issues.
-            handleLogout(true); 
-            
-            initAuth();
-            
-            // Populate Role Select
-            const roleSelect = document.getElementById('role-select');
-            roleSelect.innerHTML = `
-                <option value="">-- Select Role --</option>
-                <option value="Admin">Admin</option>
-                <option value="Teacher">Teacher</option>
-                <option value="Student">Student</option>
-            `;
-            
-            // Attach event listeners
-            loginFormEl.addEventListener('submit', handleLogin);
-            document.getElementById('logout-btn').addEventListener('click', () => handleLogout(false));
-            
-            // Student Signup events
-            document.getElementById('show-signup-btn').addEventListener('click', showSignup);
-            document.getElementById('back-to-login-btn').addEventListener('click', showLogin);
-            studentSignupFormEl.addEventListener('submit', handleStudentSignup);
-
-            // Assignment events
-            assignmentFormEl.addEventListener('submit', handleAssignmentSubmit);
-            
-            // Admin events (New/Reintroduced)
-            document.getElementById('user-add-form').addEventListener('submit', handleUserAdd);
-            document.getElementById('notification-form').addEventListener('submit', handleNotificationUpdate);
-
-            // Geolocation events
-            document.getElementById('start-btn').addEventListener('click', startSharing);
-            document.getElementById('stop-btn').addEventListener('click', stopSharing);
-            
-            // Set initial button styles
-            document.getElementById('stop-btn').classList.add('bg-gray-500', 'cursor-not-allowed');
-            
-            // Initial setup for Admin fields visibility
-            document.getElementById('new-user-role').addEventListener('change', (e) => {
-                const classField = document.getElementById('new-user-class-field');
-                if (e.target.value === 'Student') {
-                    classField.classList.remove('hidden');
-                } else {
-                    classField.classList.add('hidden');
-                }
-            });
-            document.getElementById('new-user-role').dispatchEvent(new Event('change')); // Initial call
-        }
-        
-        // Simple Navigation Toggle (Accessible globally for button clicks)
-        window.showView = function(viewId) {
-            const views = ['assignments-view', 'leaderboard-view', 'location-view', 'user-management-view'];
-            views.forEach(id => document.getElementById(id).classList.add('hidden'));
-            document.getElementById(viewId + '-view').classList.remove('hidden');
-            
-            document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('nav-' + viewId).classList.add('active');
-        }
-    </script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #1a202c; /* Dark background */
-            color: #e2e8f0; /* Light text */
-        }
-        .card {
-            background-color: #2d3748; /* Darker card background */
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
-        }
-        .input-style, .select-style {
-            background-color: #4a5568;
-            border-color: #4a5568;
-            color: #e2e8f0;
-        }
-        .title-glow {
-            text-shadow: 0 0 5px #f6e05e, 0 0 10px #f6ad55;
-        }
-        .shadow-soft {
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.15);
-        }
-        .nav-button {
-            transition: all 0.2s;
-            cursor: pointer;
-            border-bottom: 3px solid transparent;
-        }
-        .nav-button.active {
-            border-bottom: 3px solid #f6e05e;
-            color: #f6e05e;
-        }
-        /* Custom styles for the table */
-        #user-management-view table {
-             border-collapse: separate;
-             border-spacing: 0;
-        }
-        #user-management-view th {
-            background-color: #4a5568;
-        }
-        .option-item:hover input:not(:disabled) {
-            background-color: #1a202c; /* Ensure radio button background changes on hover */
-        }
-    </style>
-</head>
-<body class="p-4 md:p-8 min-h-screen flex items-start justify-center">
-
-    <div class="w-full max-w-4xl space-y-6">
-
-        <!-- Main Header (Updated Title and Notification) -->
-        <header class="text-center mb-6">
-            <div class="text-4xl title-glow mb-2">
-                <span class="text-yellow-400">❄️</span> Winter Assignment Portal Zone Wagoora <span class="text-yellow-400">🏆</span>
-            </div>
-            <!-- Notification Marquee -->
-            <div class="bg-yellow-800 bg-opacity-30 py-1 px-4 rounded-lg shadow-inner">
-                 <marquee id="notification-marquee" class="text-sm font-semibold text-yellow-300" scrollamount="4">
-                    Loading notifications...
-                </marquee>
-            </div>
-            <p id="error-message" class="text-sm text-red-500 mt-2"></p>
-        </header>
-
-        <!-- --- LOGIN CONTAINER (Starts visible) --- -->
-        <div id="login-container" class="card p-6 rounded-xl">
-            <h2 class="text-2xl font-semibold text-gray-200 mb-6 border-b border-gray-600 pb-2">Portal Login</h2>
-            
-            <form id="login-form" class="space-y-4">
-                
-                <div>
-                    <label for="role-select" class="block text-sm font-medium text-gray-400 mb-1">Login As:</label>
-                    <select id="role-select" class="w-full px-4 py-3 rounded-lg select-style border focus:ring-yellow-500 focus:border-yellow-500">
-                        <!-- Options populated by JS -->
-                    </select>
-                </div>
-
-                <div>
-                    <label for="username-input" class="block text-sm font-medium text-gray-400 mb-1">Username:</label>
-                    <input type="text" id="username-input" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="e.g., Admin_Pethgam or Student101">
-                </div>
-
-                <div>
-                    <label for="pin-input" class="block text-sm font-medium text-gray-400 mb-1">Password / PIN:</label>
-                    <input type="password" id="pin-input" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="****">
-                </div>
-                
-                <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold transition duration-200 bg-teal-500 text-white hover:bg-teal-600 shadow-soft">
-                    Login
-                </button>
-            </form>
-            <p class="text-xs text-gray-500 mt-4 text-center">
-                <button id="show-signup-btn" class="text-yellow-400 hover:text-yellow-300 font-semibold">
-                    New Student? Click here to Sign Up.
-                </button>
-            </p>
-            <p class="text-xs text-gray-500 mt-2 text-center">
-                *Demo Admin: Admin\_Pethgam / 0000
-            </p>
-        </div>
-        
-        <!-- --- STUDENT SIGNUP CONTAINER (Starts hidden) --- -->
-        <div id="student-signup-container" class="card p-6 rounded-xl hidden">
-            <h2 class="text-2xl font-semibold text-gray-200 mb-6 border-b border-gray-600 pb-2">Student Sign Up</h2>
-            <p id="signup-error-message" class="text-sm text-red-500 mb-4"></p>
-            
-            <form id="student-signup-form" class="space-y-4">
-                
-                <div class="flex space-x-4">
-                    <div class="flex-1">
-                        <label for="student-signup-username" class="block text-sm font-medium text-gray-400 mb-1">Username:</label>
-                        <input type="text" id="student-signup-username" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="Choose a Username">
-                    </div>
-                    <div class="flex-1">
-                        <label for="student-signup-pin" class="block text-sm font-medium text-gray-400 mb-1">PIN:</label>
-                        <input type="password" id="student-signup-pin" required class="w-full px-4 py-3 rounded-lg input-style border focus:ring-yellow-500 focus:border-yellow-500" placeholder="Choose a PIN (e.g., 1111)">
-                    </div>
-                </div>
-                
-                <div class="flex space-x-4">
-                     <div class="flex-1">
-                        <label for="student-signup-school" class="block text-sm font-medium text-gray-400 mb-1">School:</label>
-                        <select id="student-signup-school" required class="w-full px-4 py-3 rounded-lg select-style border focus:ring-yellow-500 focus:border-yellow-500">
-                             <!-- Options populated by JS -->
-                        </select>
-                    </div>
-                    <div class="flex-1">
-                        <label for="student-signup-class" class="block text-sm font-medium text-gray-400 mb-1">Class:</label>
-                        <select id="student-signup-class" required class="w-full px-4 py-3 rounded-lg select-style border focus:ring-yellow-500 focus:border-yellow-500">
-                            <!-- Options populated by JS -->
-                        </select>
-                    </div>
-                </div>
-                
-                <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold transition duration-200 bg-green-500 text-white hover:bg-green-600 shadow-soft">
-                    Register as Student
-                    </button>
-            </form>
-            <p class="text-xs text-gray-500 mt-4 text-center">
-                <button id="back-to-login-btn" class="text-blue-400 hover:text-blue-300 font-semibold">
-                    Already Registered? Back to Login.
-                </button>
-            </p>
-        </div>
-
-
-        <!-- --- ASSIGNMENT PORTAL CONTAINER (Starts hidden) --- -->
-        <div id="assignment-portal-container" class="space-y-6 hidden">
-            
-            <!-- Welcome/Status Card & Logout -->
-            <div class="card p-4 rounded-xl text-center flex justify-between items-center">
-                <p id="welcome-message" class="text-base md:text-lg font-semibold text-yellow-400"></p>
-                <button id="logout-btn" class="px-3 py-1 md:px-4 md:py-2 rounded-lg font-semibold text-sm transition duration-200 bg-red-700 text-white hover:bg-red-800 shadow-soft">
-                    Logout
-                </button>
-            </div>
-
-            <!-- Role-Based Navigation -->
-            <div class="card p-2 rounded-xl">
-                <div class="flex justify-between flex-wrap text-sm md:text-base">
-                    <button id="nav-assignments" onclick="showView('assignments')" class="nav-button flex-1 text-center py-2 text-gray-400 font-semibold active">Assignments</button>
-                    <button id="nav-leaderboard" onclick="showView('leaderboard')" class="nav-button flex-1 text-center py-2 text-gray-400 font-semibold">Leaderboard</button>
-                    <!-- Admin tabs - Hidden for Teacher/Student via JS -->
-                    <button id="nav-location" onclick="showView('location')" class="nav-button flex-1 text-center py-2 text-gray-400 font-semibold hidden">Live GPS</button>
-                    <button id="nav-user-management" onclick="showView('user-management')" class="nav-button flex-1 text-center py-2 text-gray-400 font-semibold hidden">Users</button>
-                </div>
-            </div>
-            
-            <!-- Assignments View -->
-            <div id="assignments-view">
-                
-                <!-- TEACHER/ADMIN ASSIGNMENT MANAGEMENT (MCQ Form Updated) -->
-                <div id="teacher-view" class="space-y-6 hidden">
-                    <div class="card p-6 rounded-xl border-l-4 border-blue-500">
-                        <h2 class="text-2xl font-bold text-blue-400 mb-4">Add New Multiple Choice Assignment</h2>
-                        
-                        <form id="assignment-form" class="space-y-4">
-                            <div class="flex space-x-4">
-                                <div class="flex-1">
-                                    <label for="assignment-class-select" class="block text-sm font-medium text-gray-400 mb-1">Class:</label>
-                                    <select id="assignment-class-select" required class="w-full px-4 py-3 rounded-lg select-style"></select>
-                                </div>
-                                <div class="flex-1">
-                                    <label for="assignment-subject-select" class="block text-sm font-medium text-gray-400 mb-1">Subject:</label>
-                                    <select id="assignment-subject-select" required class="w-full px-4 py-3 rounded-lg select-style"></select>
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <label for="assignment-question" class="block text-sm font-medium text-gray-400 mb-1">Question/Task:</label>
-                                <textarea id="assignment-question" rows="3" required class="w-full px-4 py-3 rounded-lg input-style" placeholder="Type the assignment question here..."></textarea>
-                            </div>
-                            
-                            <h3 class="text-lg font-semibold text-gray-300 border-b border-gray-600 pb-1 pt-2">Answer Options (A, B, C, D)</h3>
-
-                            <!-- Option A -->
-                            <div class="flex space-x-2 items-center">
-                                <label class="w-8 font-bold text-teal-300">A:</label>
-                                <input type="text" id="assignment-option-a" required class="flex-1 px-4 py-3 rounded-lg input-style" placeholder="Option A Text">
-                            </div>
-                            <!-- Option B -->
-                            <div class="flex space-x-2 items-center">
-                                <label class="w-8 font-bold text-teal-300">B:</label>
-                                <input type="text" id="assignment-option-b" required class="flex-1 px-4 py-3 rounded-lg input-style" placeholder="Option B Text">
-                            </div>
-                            <!-- Option C -->
-                            <div class="flex space-x-2 items-center">
-                                <label class="w-8 font-bold text-teal-300">C:</label>
-                                <input type="text" id="assignment-option-c" required class="flex-1 px-4 py-3 rounded-lg input-style" placeholder="Option C Text">
-                            </div>
-                            <!-- Option D -->
-                            <div class="flex space-x-2 items-center">
-                                <label class="w-8 font-bold text-teal-300">D:</label>
-                                <input type="text" id="assignment-option-d" required class="flex-1 px-4 py-3 rounded-lg input-style" placeholder="Option D Text">
-                            </div>
-                            
-                            <!-- Correct Answer Key -->
-                            <div>
-                                <label for="assignment-correct-key" class="block text-sm font-medium text-gray-400 mb-1">Correct Answer Key (A, B, C, or D):</label>
-                                <select id="assignment-correct-key" required class="w-full px-4 py-3 rounded-lg select-style">
-                                    <option value="">-- Select Correct Key --</option>
-                                    <option value="A">A</option>
-                                    <option value="B">B</option>
-                                    <option value="C">C</option>
-                                    <option value="D">D</option>
-                                </select>
-                            </div>
-                            
-                            <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-soft">
-                                Publish Assignment (MCQ)
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- STUDENT ASSIGNMENT VIEW -->
-                <div id="student-view" class="space-y-6 hidden">
-                     <h2 class="text-2xl font-bold text-yellow-400 mb-4">My Pending Assignments</h2>
-                     <div id="assignment-list">
-                         <p class="text-center text-gray-400">Loading assignments...</p>
-                     </div>
-                </div>
-            </div>
-
-            <!-- Leaderboard View -->
-            <div id="leaderboard-view" class="hidden">
-                <h2 class="text-2xl font-bold text-green-400 mb-4">Assignment Leaderboard</h2>
-                <div class="card p-4 rounded-xl overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-600">
-                        <thead>
-                            <tr class="text-left text-gray-400 text-xs uppercase tracking-wider">
-                                <th class="p-3">Rank</th>
-                                <th class="p-3">Student</th>
-                                <th class="p-3">School</th>
-                                <th class="p-3 text-right">Total Score</th>
-                                <th class="p-3 text-right">Assignments</th>
-                            </tr>
-                        </thead>
-                        <tbody id="leaderboard-table-body" class="divide-y divide-gray-700">
-                            <tr><td colspan="5" class="text-center p-4 text-gray-500">Loading data...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Admin User Management & Notifications View -->
-            <div id="user-management-view" class="hidden space-y-6">
-                <div id="admin-view" class="space-y-6">
-                    
-                    <!-- Notification Update Section (Scrolling Marquee Management) -->
-                    <div class="card p-6 rounded-xl border-l-4 border-yellow-500">
-                        <h2 class="text-xl font-bold text-yellow-400 mb-4">Manage Live Scrolling Notification</h2>
-                        <form id="notification-form" class="space-y-3">
-                            <div>
-                                <label for="notification-input" class="block text-sm font-medium text-gray-400 mb-1">New Marquee Message:</label>
-                                <textarea id="notification-input" rows="2" class="w-full px-4 py-3 rounded-lg input-style" placeholder="Type urgent announcement here..."></textarea>
-                            </div>
-                            <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold bg-yellow-600 text-white hover:bg-yellow-700 shadow-soft">
-                                Update Notification
-                            </button>
-                            <p id="notification-error-message" class="text-sm text-red-500 mt-2 text-center"></p>
-                        </form>
-                    </div>
-
-                    <!-- Add User Section (Teacher/Student Management) -->
-                    <div class="card p-6 rounded-xl border-l-4 border-green-500">
-                        <h2 class="text-xl font-bold text-green-400 mb-4">Add Teacher or Student</h2>
-                        <form id="user-add-form" class="space-y-4">
-                            
-                            <div class="flex space-x-4">
-                                <div class="flex-1">
-                                    <label for="new-user-role" class="block text-sm font-medium text-gray-400 mb-1">Role:</label>
-                                    <select id="new-user-role" required class="w-full px-4 py-3 rounded-lg select-style">
-                                        <option value="Teacher">Teacher</option>
-                                        <option value="Student">Student</option>
-                                    </select>
-                                </div>
-                                <div class="flex-1">
-                                    <label for="new-user-school" class="block text-sm font-medium text-gray-400 mb-1">School:</label>
-                                    <select id="new-user-school" required class="w-full px-4 py-3 rounded-lg select-style">
-                                        <!-- Options populated by JS -->
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="flex space-x-4">
-                                <div class="flex-1">
-                                    <label for="new-user-username" class="block text-sm font-medium text-gray-400 mb-1">Username:</label>
-                                    <input type="text" id="new-user-username" required class="w-full px-4 py-3 rounded-lg input-style" placeholder="Username">
-                                </div>
-                                <div class="flex-1">
-                                    <label for="new-user-pin" class="block text-sm font-medium text-gray-400 mb-1">PIN/Password:</label>
-                                    <input type="password" id="new-user-pin" required class="w-full px-4 py-3 rounded-lg input-style" placeholder="****">
-                                </div>
-                            </div>
-                            
-                            <!-- Class field visible only for Students -->
-                            <div id="new-user-class-field" class="hidden">
-                                <label for="new-user-class" class="block text-sm font-medium text-gray-400 mb-1">Class (Student Only):</label>
-                                <select id="new-user-class" class="w-full px-4 py-3 rounded-lg select-style">
-                                     <!-- Options populated by JS -->
-                                </select>
-                            </div>
-                            
-                            <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold bg-green-600 text-white hover:bg-green-700 shadow-soft">
-                                Add User
-                            </button>
-                            <p id="admin-error-message" class="text-sm text-red-500 mt-2 text-center"></p>
-                        </form>
-                    </div>
-
-                    <!-- Current Users List (Teacher/Student Removal) -->
-                    <h2 class="text-2xl font-bold text-gray-200 mb-4">Current Portal Users</h2>
-                    <div class="card p-4 rounded-xl overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-600">
-                            <thead>
-                                <tr class="text-left text-gray-300 text-xs uppercase tracking-wider">
-                                    <th class="p-3">Username</th>
-                                    <th class="p-3">Role</th>
-                                    <th class="p-3">PIN</th> <!-- New Column -->
-                                    <th class="p-3">Class</th>
-                                    <th class="p-3">School</th>
-                                    <th class="p-3 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="user-list-table-body" class="divide-y divide-gray-700">
-                                <tr><td colspan="6" class="text-center p-4 text-gray-500">Loading user list...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Location View (Live GPS) -->
-            <div id="location-view" class="hidden space-y-6">
-                <div class="card p-4 rounded-xl text-center">
-                    <p id="portal-status" class="text-base text-red-500 font-bold">Portal is Stopped.</p>
-                </div>
-                
-                <!-- Control Sharing (Admin Only) -->
-                <div class="card p-6 rounded-xl" id="location-controls">
-                    <h2 class="text-xl font-semibold text-gray-200 mb-4">Control Location Sharing</h2>
-                    <p class="text-sm text-gray-400 mb-4">
-                        Admin only: Share your device's live location (visible to all logged-in users).
-                    </p>
-                    <div class="flex space-x-4">
-                        <button id="start-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 bg-green-600 text-white hover:bg-green-700 shadow-soft">
-                            Start Sharing
-                        </button>
-                        <button id="stop-btn" class="flex-1 px-4 py-3 rounded-lg font-semibold transition duration-200 text-white shadow-soft">
-                            Stop Sharing
-                        </button>
-                    </div>
-                    <div id="location-display" class="text-sm text-gray-400 space-y-1 mt-4 p-3 bg-gray-700/50 rounded">
-                        <div class="text-gray-500">Press 'Start Sharing' to begin sending your GPS coordinates.</div>
-                    </div>
-                </div>
-
-                <!-- Shared Location Display -->
-                <div class="card p-6 rounded-xl">
-                    <h2 class="text-xl font-semibold text-gray-200 mb-4">Remote Shared Location (Admin)</h2>
-                    <div id="remote-location-display" class="text-sm text-gray-400 space-y-1 mb-4">
-                        <div class="text-blue-400">Waiting for Admin live data...</div>
-                    </div>
-                    
-                    <a id="map-link" href="#" target="_blank" class="hidden text-center block w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-200 shadow-soft mt-4">
-                        View Location on Google Maps
-                    </a>
-                </div>
-            </div>
-            
-        </div>
-        
-        <!-- Instruction Footer (Updated with Developer Credit) -->
-        <footer class="text-center text-xs text-gray-500 pt-4 space-y-1 w-full max-w-4xl mx-auto">
-            <p>Portal powered by Firebase Firestore & Realtime Database.</p>
-            <p class="text-sm text-gray-400 font-medium">
-                Designed & Developed by Mohammad Ashraf Rather, Teacher PS Pethgam Wagoora.
-            </p>
-        </footer>
-
-    </div>
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-                            
-                                
-                                                                    
+        function getTrophy(score) {
+            if (score >= TROPHY_THRESHOLDS.GOLD) return '🥇 Gold';
+            if (score >= TROPHY_THRESHOLDS.SILVER) return '🥈 Silver';
+            if (score >= TROPHY_THRESHOLDS.BRONZE) return '🥉 Bronze';
