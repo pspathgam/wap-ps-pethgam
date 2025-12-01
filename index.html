@@ -6,30 +6,72 @@
   <title>Winter Assignment Portal — Zone Wagoora</title>
 
   <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
-  <style>
-    body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background: linear-gradient(180deg,#e6f0ff 0%, #ffffff 100%); }
-    .glass { background: rgba(255,255,255,0.7); backdrop-filter: blur(6px); border-radius: 12px; box-shadow: 0 6px 24px rgba(8,20,40,0.08); }
-    .marquee { white-space: nowrap; overflow:hidden; }
-    .marquee p { display: inline-block; padding-left:100%; animation: marquee 18s linear infinite; }
-    @keyframes marquee { 0% { transform: translateX(0%);} 100% { transform: translateX(-100%);} }
-    .hidden { display:none !important; }
-  </style>
+<style>
+  body { 
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; 
+    background: linear-gradient(180deg,#dfefff 0%, #ffffff 100%);
+  }
+
+  /* ✨ Double-Shade Portal Cards */
+  .glass { 
+    background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(235,245,255,0.7));
+    backdrop-filter: blur(6px); 
+    border-radius: 16px; 
+    box-shadow: 0 8px 28px rgba(8,20,40,0.12); 
+    border: 1px solid rgba(255,255,255,0.6);
+  }
+
+  /* ✨ Light-Yellow Scrolling Notification Bar */
+  .marquee { 
+    white-space: nowrap; 
+    overflow:hidden; 
+    background: #fff8d6 !important; 
+    border-radius: 8px;
+  }
+
+  .marquee p { 
+    display: inline-block; 
+    padding-left:100%; 
+    animation: marquee 18s linear infinite; 
+    color:#7a5a00; 
+    font-weight:600;
+  }
+
+  @keyframes marquee { 
+    0% { transform: translateX(0%);} 
+    100% { transform: translateX(-100%);} 
+  }
+
+  .hidden { display:none !important; }
+</style>
+
 </head>
 <body class="min-h-screen p-6">
 
-  <!-- Top marquee area -->
-  <div id="notification-bar" class="glass p-3 mb-4">
-    <div class="flex items-center justify-between">
-      <div class="font-semibold text-slate-700">Winter Assignment Portal — Zone Wagoora</div>
-      <div class="text-sm text-gray-600">v12</div>
-    </div>
-    <div class="mt-2 h-8 marquee bg-white/30 rounded p-2 flex items-center">
-      <p id="notification-marquee">Welcome to Winter Assignment Portal</p>
-    </div>
+<!-- Top marquee area -->
+<div id="notification-bar" class="glass p-3 mb-4">
+  <div class="flex items-center justify-between">
+    <div class="font-semibold text-slate-700">Winter Assignment Portal — Zone Wagoora</div>
+    <div class="text-sm text-gray-600">v12</div>
   </div>
+
+  <!-- ✨ Updated marquee background -->
+  <div class="mt-2 h-8 marquee p-2 flex items-center">
+    <p id="notification-marquee">Welcome to Winter Assignment Portal</p>
+  </div>
+</div>
+
+<!-- Main layout -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+  <!-- Left column: Auth / profile / nav -->
+  <div class="col-span-1 glass p-4">
+    <div id="auth-card">
+      <h3 class="text-lg font-semibold mb-2">Login</h3>
 
   <!-- Main layout -->
   <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
