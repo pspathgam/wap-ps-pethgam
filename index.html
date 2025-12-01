@@ -741,43 +741,164 @@ async function handleUserSignup(e){
   }
 }
 
-// -------------------- On Login --------------------
-function onUserLoggedIn(){
-  // show profile card
-  safeGet('login-container') && (safeGet('login-container').classList && safeGet('login-container').classList.add('hidden'));
-  refs.profileCard.classList.remove('hidden');
-  refs.logoutBtn.classList.remove('hidden');
-  refs.welcomeMessage.textContent = `${currentUser.username} (${currentUser.role})`;
-  refs.avatar.textContent = (currentUser.username||'U').slice(0,1).toUpperCase();
-  refs.navAssignments.classList.remove('hidden');
-  refs.navLeaderboard.classList.remove('hidden');
+// -------------------- LOGIN (REPLACEMENT, more robust) --------------------
+async function handleLogin(e){
+  try {
+    e && e.preventDefault();
 
-  // role-specific UI
-  if (currentUser.role === 'Admin') {
-    refs.navUserMgmt.classList.remove('hidden');
-    refs.navLocation.classList.remove('hidden');
-    refs.navAddMcqs.classList.add('hidden');
-    refs.adminControls.classList.remove('hidden');
-    refs.adminManagementView.classList.remove('hidden');
-    showView('admin-management');
-    renderAdminControls();
-  } else if (currentUser.role === 'Teacher') {
-    refs.navAddMcqs.classList.remove('hidden');
-    refs.adminControls.classList.add('hidden');
-    refs.teacherSummary.classList.remove('hidden');
-    showView('assignments');
-    refs.teacherView.classList.remove('hidden');
-    loadTeacherMcqs();
-  } else if (currentUser.role === 'Student') {
-    refs.studentSummary.classList.remove('hidden');
-    showView('assignments');
-    refs.studentView.classList.remove('hidden');
-    loadStudentStats();
+    // defensive refs check
+    if (!refs || !refs.roleSelect || !refs.usernameInput || !refs.pinInput) {
+      console.error("Login: required DOM refs missing", refs);
+      alert("Login UI not initialized properly. Please refresh the page.");
+      return;
+    }
+
+    const role = (refs.roleSelect.value || '').trim();
+    const usernameRaw = (refs.usernameInput.value || '').trim();
+    const pin = (refs.pinInput.value || '').trim();
+
+    // UX: clear previous error
+    if (refs.errorEl) refs.errorEl.textContent = '';
+
+    if (!role || !usernameRaw || !pin) {
+      if (refs.errorEl) refs.errorEl.textContent = 'Please fill all login fields.';
+      else alert('Please fill all login fields.');
+      return;
+    }
+
+    console.log("Attempting login:", { role, usernameRaw });
+
+    // refresh user cache (best-effort)
+    await loadUserCache();
+
+    const key = lower(usernameRaw);
+
+    // Special-case default admin (builtin)
+    if (key === DEFAULT_ADMIN_KEY && pin === '0000' && role === 'Admin') {
+      currentUser = { username: 'Admin_Pethgam', role: 'Admin', id: 'builtin-admin', school: 'PS Pethgam Wagoora', status: 'Approved' };
+      console.log("Logged in as builtin admin");
+      onUserLoggedIn();
+      return;
+    }
+
+    // Lookup user in cache
+    const user = allUsers[key];
+    if (!user) {
+      console.warn("Login failed: user not found in cache for key:", key, "allUsers keys:", Object.keys(allUsers).slice(0,20));
+      if (refs.errorEl) refs.errorEl.textContent = 'Login failed: user not found';
+      else alert('Login failed: user not found');
+      return;
+    }
+
+    // PIN validation (string compare)
+    if (String(user.pin) !== String(pin)) {
+      console.warn("Login failed: invalid PIN for user:", key);
+      if (refs.errorEl) refs.errorEl.textContent = 'Login failed: invalid PIN';
+      else alert('Login failed: invalid PIN');
+      return;
+    }
+
+    // Role validation
+    if (String(user.role).trim() !== role) {
+      console.warn("Login failed: role mismatch. Stored:", user.role, "Selected:", role);
+      if (refs.errorEl) refs.errorEl.textContent = 'Login failed: selected role does not match';
+      else alert('Login failed: selected role does not match');
+      return;
+    }
+
+    // Status check
+    if (String(user.status) !== 'Approved') {
+      console.warn("Login failed: account status is", user.status);
+      if (refs.errorEl) refs.errorEl.textContent = 'Your account is pending approval.';
+      else alert('Your account is pending approval.');
+      return;
+    }
+
+    // success: set currentUser and proceed
+    currentUser = { ...user, id: user.id };
+    console.log("Login successful for", currentUser);
+    onUserLoggedIn();
+
+  } catch (err) {
+    console.error("handleLogin error:", err);
+    if (refs && refs.errorEl) refs.errorEl.textContent = 'Login error: ' + (err.message || err);
+    else alert('Login error: ' + (err.message || err));
   }
-  // show logout
-  refs.openProfileLogout && (refs.openProfileLogout.classList.remove('hidden'));
 }
 
+// Ensure the login form handler is attached (safe attach)
+(function ensureLoginHandlerAttached(){
+  try {
+    // If refs not yet initialized, wait for DOMContentLoaded and re-run
+    if (!refs || !refs.loginForm) {
+      document.addEventListener('DOMContentLoaded', () => {
+        const lf = document.getElementById('login-form');
+        if (lf && !lf._loginHandlerAttached) {
+          lf.addEventListener('submit', handleLogin);
+          lf._loginHandlerAttached = true;
+          console.log("Login submit handler attached (late)");
+        }
+      });
+      return;
+    }
+    // Attach now if not already
+    if (refs.loginForm && !refs.loginForm._loginHandlerAttached) {
+      refs.loginForm.addEventListener('submit', handleLogin);
+      refs.loginForm._loginHandlerAttached = true;
+      console.log("Login submit handler attached");
+    }
+  } catch (e) {
+    console.warn("Failed to attach login handler:", e);
+  }
+})();
+
+
+// -------------------- On Login (REPLACEMENT: use existing auth-card id) --------------------
+function onUserLoggedIn(){
+  try {
+    // Hide the auth card (your HTML has id="auth-card")
+    const authCard = document.getElementById('auth-card');
+    if (authCard && authCard.classList) authCard.classList.add('hidden');
+
+    // Show profile, nav and role views
+    if (refs.profileCard) refs.profileCard.classList.remove('hidden');
+    if (refs.logoutBtn) refs.logoutBtn.classList.remove('hidden');
+    if (refs.welcomeMessage) refs.welcomeMessage.textContent = `${currentUser.username} (${currentUser.role})`;
+    if (refs.avatar) refs.avatar.textContent = (currentUser.username||'U').slice(0,1).toUpperCase();
+    if (refs.navAssignments) refs.navAssignments.classList.remove('hidden');
+    if (refs.navLeaderboard) refs.navLeaderboard.classList.remove('hidden');
+
+    // Role-specific UI
+    if (currentUser.role === 'Admin') {
+      if (refs.navUserMgmt) refs.navUserMgmt.classList.remove('hidden');
+      if (refs.navLocation) refs.navLocation.classList.remove('hidden');
+      if (refs.navAddMcqs) refs.navAddMcqs.classList.add('hidden');
+      if (refs.adminControls) refs.adminControls.classList.remove('hidden');
+      if (refs.adminManagementView) refs.adminManagementView.classList.remove('hidden');
+      showView('admin-management');
+      renderAdminControls();
+    } else if (currentUser.role === 'Teacher') {
+      if (refs.navAddMcqs) refs.navAddMcqs.classList.remove('hidden');
+      if (refs.adminControls) refs.adminControls.classList.add('hidden');
+      if (refs.teacherSummary) refs.teacherSummary.classList.remove('hidden');
+      showView('assignments');
+      if (refs.teacherView) refs.teacherView.classList.remove('hidden');
+      loadTeacherMcqs();
+    } else if (currentUser.role === 'Student') {
+      if (refs.studentSummary) refs.studentSummary.classList.remove('hidden');
+      showView('assignments');
+      if (refs.studentView) refs.studentView.classList.remove('hidden');
+      loadStudentStats();
+    }
+
+    // show logout UI if present
+    if (refs.openProfileLogout) refs.openProfileLogout.classList.remove('hidden');
+
+    console.log("onUserLoggedIn completed for", currentUser.username);
+  } catch (err) {
+    console.error("onUserLoggedIn error:", err);
+  }
+}
 // -------------------- Admin UI / Pending approvals / School list --------------------
 function renderPendingApprovals(){
   if (!refs.pendingList) return;
