@@ -896,85 +896,108 @@ async function loadStudentStats(){
 }
 
 // -------------------- LEADERBOARDS --------------------
+// ==============================
+// LEADERBOARDS MODULE
+// ==============================
 
-async function loadClassLeaderboard(){
-  const cls = refs.leaderboardClassSelect.value;
-  if (!cls) { refs.classLeaderboard.innerHTML = '<div class="text-sm text-gray-600">Select class</div>'; return; }
-  try {
-    // query coins for students in this class: we need to join users and coins client-side
-    const users = Object.values(allUsers).filter(u => u.role==='Student' && u.class===cls && u.status==='Approved');
-    // load coins for each
-    const rows = [];
-    for (const u of users){
-      const cdoc = await getDoc(doc(db, COINS_PATH, lower(u.username)));
-      const coins = cdoc.exists() ? (cdoc.data().coins || 0) : 0;
-      rows.push({ username: u.username, class: u.class, school: u.school, coins });
-    }
-    // sort by coins desc
-    rows.sort((a,b)=>b.coins - a.coins);
-    refs.classLeaderboard.innerHTML = rows.map((r,i)=>`<div class="p-2 border-b flex justify-between">
-      <div><strong>#${i+1} ${r.username}</strong><div class="text-xs text-gray-600">${r.class} • ${r.school}</div></div>
-      <div class="text-lg font-semibold">${r.coins}</div>
-    </div>`).join('') || '<div class="text-sm text-gray-600">No data</div>';
-  } catch(e){ console.error(e); refs.classLeaderboard.textContent = 'Failed'; }
+// Fetch coin records for all students
+async function fetchAllCoinRecords() {
+  const snap = await getDocs(colRef(COINS_PATH));
+  let results = [];
+  snap.forEach(docSnap => {
+    let d = docSnap.data();
+    d.id = docSnap.id;
+    results.push(d);
+  });
+  return results;
 }
 
-// subject-wise: first select class
-function loadSubjectLeaderboardOptions(){
-  const cls = refs.leaderboardClassSelect2.value;
-  if (!cls) { refs.subjectLeaderboard.innerHTML = '<div class="text-sm text-gray-600">Select class</div>'; return; }
-  refs.leaderboardSubjectSelect.value = '';
-  refs.subjectLeaderboard.innerHTML = '<div class="text-sm text-gray-600">Select subject</div>';
+// Render Class-wise Leaderboard
+async function renderClassLeaderboard() {
+  const selectedClass = safeGet("leaderboard-class-select").value;
+  const box = safeGet("class-leaderboard");
+  box.innerHTML = "Loading...";
+
+  const data = await fetchAllCoinRecords();
+  const filtered = data
+    .filter(u => u.class === selectedClass)
+    .sort((a,b) => (b.totalCoins || 0) - (a.totalCoins || 0));
+
+  box.innerHTML = filtered.length === 0 
+    ? "<p>No records found</p>"
+    : filtered.map((x,i)=>`
+      <div class="border p-2 rounded mb-1">
+        <strong>${i+1}. ${x.username}</strong><br>
+        Coins: ${x.totalCoins || 0}
+      </div>
+    `).join("");
 }
 
-// load subject leaderboard
-async function loadSubjectLeaderboard(){
-  const cls = refs.leaderboardClassSelect2.value;
-  const subj = refs.leaderboardSubjectSelect.value;
-  if (!cls || !subj) { refs.subjectLeaderboard.innerHTML = '<div class="text-sm text-gray-600">Select class & subject</div>'; return; }
-  try {
-    // We will measure performance by number of correct answers per student in MCQs for that subject;
-    // For simplicity, rank by coins among students of that class who attempted that subject (approx).
-    const users = Object.values(allUsers).filter(u => u.role==='Student' && u.class===cls && u.status==='Approved');
-    const rows = [];
-    for (const u of users){
-      const cdoc = await getDoc(doc(db, COINS_PATH, lower(u.username)));
-      const coins = cdoc.exists() ? (cdoc.data().coins || 0) : 0;
-      rows.push({ username: u.username, class: u.class, school: u.school, coins });
-    }
-    rows.sort((a,b)=>b.coins - a.coins);
-    refs.subjectLeaderboard.innerHTML = rows.map((r,i)=>`<div class="p-2 border-b flex justify-between">
-      <div><strong>#${i+1} ${r.username}</strong><div class="text-xs text-gray-600">${r.class} • ${r.school}</div></div>
-      <div class="text-lg font-semibold">${r.coins}</div>
-    </div>`).join('') || '<div class="text-sm text-gray-600">No data</div>';
-  } catch(e){ console.error(e); refs.subjectLeaderboard.textContent = 'Failed'; }
+// Render Subject-wise Leaderboard
+async function renderSubjectLeaderboard() {
+  const selectedClass = safeGet("leaderboard-class-select-2").value;
+  const selectedSubject = safeGet("leaderboard-subject-select").value;
+  const box = safeGet("subject-leaderboard");
+  box.innerHTML = "Loading...";
+
+  const data = await fetchAllCoinRecords();
+  const filtered = data
+    .filter(u => u.class === selectedClass)
+    .sort((a,b) => 
+      ((b.subjectCoins?.[selectedSubject] || 0) - 
+       (a.subjectCoins?.[selectedSubject] || 0))
+    );
+
+  box.innerHTML = filtered.length === 0 
+    ? "<p>No records found</p>"
+    : filtered.map((x,i)=>`
+      <div class="border p-2 rounded mb-1">
+        <strong>${i+1}. ${x.username}</strong><br>
+        ${selectedSubject}: ${(x.subjectCoins?.[selectedSubject] || 0)}
+      </div>
+    `).join("");
 }
 
-// overall leaderboard
-async function loadOverallLeaderboard(){
-  try {
-    const students = Object.values(allUsers).filter(u=>u.role==='Student' && u.status==='Approved');
-    const rows = [];
-    for (const s of students){
-      const cdoc = await getDoc(doc(db, COINS_PATH, lower(s.username)));
-      const coins = cdoc.exists() ? (cdoc.data().coins || 0) : 0;
-      rows.push({ username: s.username, class: s.class, school: s.school, coins });
-    }
-    rows.sort((a,b)=>b.coins - a.coins);
-    refs.overallLeaderboard.innerHTML = rows.map((r,i)=>`<div class="p-2 border-b flex justify-between">
-      <div><strong>#${i+1} ${r.username}</strong><div class="text-xs text-gray-600">${r.class} • ${r.school}</div></div>
-      <div class="text-lg font-semibold">${r.coins}</div>
-    </div>`).join('') || '<div class="text-sm text-gray-600">No data</div>';
-  } catch(e){ console.error(e); refs.overallLeaderboard.textContent='Failed'; }
+// Render Overall Leaderboard
+async function renderOverallLeaderboard() {
+  const box = safeGet("overall-leaderboard");
+  box.innerHTML = "Loading...";
+
+  const data = await fetchAllCoinRecords();
+  const sorted = data.sort((a,b)=> (b.totalCoins || 0) - (a.totalCoins || 0));
+
+  box.innerHTML = sorted.length === 0
+    ? "<p>No records found</p>"
+    : sorted.map((x,i)=>`
+      <div class="border p-2 rounded mb-1">
+        <strong>${i+1}. ${x.username}</strong><br>
+        Total: ${x.totalCoins || 0}
+      </div>
+    `).join("");
 }
 
-// wrapper to refresh leaderboards
-async function loadLeaderboards(){
-  await loadClassLeaderboard();
-  await loadSubjectLeaderboard();
-  await loadOverallLeaderboard();
+// ==============================
+// Event Listeners for Leaderboards
+// ==============================
+
+safeGet("leaderboard-class-select").addEventListener("change", renderClassLeaderboard);
+safeGet("leaderboard-class-select-2").addEventListener("change", renderSubjectLeaderboard);
+safeGet("leaderboard-subject-select").addEventListener("change", renderSubjectLeaderboard);
+
+// Auto load overall leaderboard
+function loadAllLeaderboards() {
+  renderOverallLeaderboard();
+  if (safeGet("leaderboard-class-select").value)
+    renderClassLeaderboard();
+  if (safeGet("leaderboard-class-select-2").value &&
+      safeGet("leaderboard-subject-select").value)
+    renderSubjectLeaderboard();
 }
 
+// Call when leaderboard page is opened
+safeGet("nav-leaderboard").addEventListener("click", () => {
+  setTimeout(loadAllLeaderboards, 300);
+});
 // -------------------- small helpers --------------------
 
 function showView(name){
