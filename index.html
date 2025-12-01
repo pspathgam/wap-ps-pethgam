@@ -75,20 +75,38 @@
         <div id="error-message" class="text-sm text-red-600 mb-2"></div>
 
         <form id="login-form" class="space-y-2">
-          <label class="block text-sm">Login as</label>
-          <select id="role-select" class="p-2 border rounded w-full">
-            <option value="">-- Select Role --</option>
-            <option value="Admin">Admin</option>
-            <option value="Teacher">Teacher</option>
-            <option value="Student">Student</option>
-          </select>
+        <form id="login-form" class="space-y-2">
+  <label class="block text-sm">Login as</label>
+  <select id="role-select" class="p-2 border rounded w-full">
+    <option value="">-- Select Role --</option>
+    <option value="Admin">Admin</option>
+    <option value="Teacher">Teacher</option>
+    <option value="Student">Student</option>
+  </select>
 
-          <input id="username-input" placeholder="Username" required class="w-full border p-2 rounded" />
-          <input id="pin-input" placeholder="4-6 digit PIN" type="password" required class="w-full border p-2 rounded" />
-          <div class="flex gap-2">
-            <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded">Login</button>
-            <button id="show-signup-btn" type="button" class="bg-green-600 text-white px-3 py-2 rounded">Sign Up</button>
-            <button id="logout-btn" type="button" class="ml-auto text-sm text-gray-600 hidden">Logout</button>
+  <input id="username-input" placeholder="Username" required class="w-full border p-2 rounded" />
+  <input id="pin-input" placeholder="4-6 digit PIN" type="password" required class="w-full border p-2 rounded" />
+
+  <div class="flex gap-2">
+    <!-- FIXED BUTTON -->
+    <button id="login-button" type="button"
+            class="bg-blue-600 text-white px-3 py-2 rounded">
+      Login
+    </button>
+
+    <button id="show-signup-btn" type="button"
+            class="bg-green-600 text-white px-3 py-2 rounded">
+      Sign Up
+    </button>
+
+    <button id="logout-btn" type="button"
+            class="ml-auto text-sm text-gray-600 hidden">
+      Logout
+    </button>
+  </div>
+
+  <div id="login-error-message" class="text-sm text-red-600"></div>
+        </form>
           </div>
         </form>
 
