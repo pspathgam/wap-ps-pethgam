@@ -4,8 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Winter Assignment Portal — Zone Wagoora</title>
-
-  <!-- Tailwind CDN -->
   <!-- Tailwind CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -102,33 +100,82 @@
         </form>
 
         <!-- Signup form -->
-        <div id="user-signup-container" class="mt-4 hidden">
-          <h4 class="font-semibold">Sign up</h4>
-          <form id="user-signup-form" class="space-y-2">
-            <label class="text-sm">Role</label>
-            <select id="user-signup-role" class="p-2 border rounded w-full">
-              <option value="">-- Select Role --</option>
-              <option value="Teacher">Teacher</option>
-              <option value="Student">Student</option>
-            </select>
+<div id="user-signup-container" class="mt-4 hidden">
+  <h4 class="font-semibold">Sign up</h4>
 
-            <input id="user-signup-username" placeholder="Username" class="w-full border p-2 rounded" />
-            <input id="user-signup-pin" placeholder="4-6 digit PIN" class="w-full border p-2 rounded" />
-            <div id="signup-class-field" class="hidden">
-              <label class="text-sm">Class</label>
-              <select id="user-signup-class" class="w-full border p-2 rounded"></select>
-            </div>
-            <label class="text-sm">School</label>
-            <select id="user-signup-school" class="w-full border p-2 rounded"></select>
+  <form id="user-signup-form" class="space-y-2">
 
-            <div class="flex gap-2">
-              <button type="submit" class="bg-indigo-600 text-white px-3 py-2 rounded">Submit Signup</button>
-              <button id="show-login-btn" type="button" class="px-3 py-2 rounded border">Back</button>
-            </div>
-            <div id="signup-error-message" class="text-sm text-red-600"></div>
-          </form>
-        </div>
-      </div>
+    <!-- Role -->
+    <label class="text-sm">Role</label>
+    <select id="user-signup-role" class="p-2 border rounded w-full bg-gradient-to-r from-yellow-50 to-blue-50">
+      <option value="">-- Select Role --</option>
+      <option value="Teacher">Teacher</option>
+      <option value="Student">Student</option>
+    </select>
+
+    <!-- Username -->
+    <input id="user-signup-username" 
+           placeholder="Username" 
+           class="w-full border p-2 rounded bg-gradient-to-r from-blue-50 to-white" />
+
+    <!-- PIN -->
+    <input id="user-signup-pin" 
+           placeholder="4-6 digit PIN" 
+           class="w-full border p-2 rounded bg-gradient-to-r from-yellow-50 to-white" />
+
+    <!-- CLASS FIELD (visible for students only) -->
+    <div id="signup-class-field" class="hidden">
+      <label class="text-sm">Class</label>
+      <select id="user-signup-class" 
+              class="w-full border p-2 rounded bg-gradient-to-r from-green-50 to-white">
+      </select>
+    </div>
+
+    <!-- School Dropdown -->
+    <label class="text-sm">School</label>
+    <select id="user-signup-school" 
+            class="w-full border p-2 rounded bg-gradient-to-r from-purple-50 to-white">
+    </select>
+
+    <div class="flex gap-2">
+      <button type="submit" 
+              class="bg-indigo-600 text-white px-3 py-2 rounded">Submit Signup</button>
+
+      <button id="show-login-btn" 
+              type="button" 
+              class="px-3 py-2 rounded border">Back</button>
+    </div>
+
+    <div id="signup-error-message" class="text-sm text-red-600"></div>
+  </form>
+</div>
+
+<script>
+/* -------------------------
+   FIX: POPULATE CLASSES 1–8
+   ------------------------- */
+const classSelect = document.getElementById("user-signup-class");
+for (let i = 1; i <= 8; i++) {
+  const opt = document.createElement("option");
+  opt.value = i;
+  opt.textContent = "Class " + i;
+  classSelect.appendChild(opt);
+}
+
+/* -------------------------
+   SHOW/HIDE CLASS FIELD
+   BASED ON ROLE
+   ------------------------- */
+document.getElementById("user-signup-role").addEventListener("change", function () {
+  const classField = document.getElementById("signup-class-field");
+
+  if (this.value === "Student") {
+    classField.classList.remove("hidden");
+  } else {
+    classField.classList.add("hidden");
+  }
+});
+</script>
 
       <!-- Quick info & leaderboard links -->
       <div id="profile-card" class="mt-4 hidden">
