@@ -92,13 +92,10 @@
           </div>
         </form>
 
-        <!-- Signup form -->
+<!-- Signup form -->
 <div id="user-signup-container" class="mt-4 hidden">
   <h4 class="font-semibold">Sign up</h4>
-
   <form id="user-signup-form" class="space-y-2">
-
-    <!-- Role -->
     <label class="text-sm">Role</label>
     <select id="user-signup-role" class="p-2 border rounded w-full bg-gradient-to-r from-yellow-50 to-blue-50">
       <option value="">-- Select Role --</option>
@@ -106,68 +103,114 @@
       <option value="Student">Student</option>
     </select>
 
-    <!-- Username -->
-    <input id="user-signup-username" 
-           placeholder="Username" 
-           class="w-full border p-2 rounded bg-gradient-to-r from-blue-50 to-white" />
+    <input id="user-signup-username" placeholder="Username" class="w-full border p-2 rounded bg-gradient-to-r from-blue-50 to-white" />
+    <input id="user-signup-pin" placeholder="4-6 digit PIN" class="w-full border p-2 rounded bg-gradient-to-r from-yellow-50 to-white" />
 
-    <!-- PIN -->
-    <input id="user-signup-pin" 
-           placeholder="4-6 digit PIN" 
-           class="w-full border p-2 rounded bg-gradient-to-r from-yellow-50 to-white" />
-
-    <!-- CLASS FIELD (visible for students only) -->
     <div id="signup-class-field" class="hidden">
       <label class="text-sm">Class</label>
-      <select id="user-signup-class" 
-              class="w-full border p-2 rounded bg-gradient-to-r from-green-50 to-white">
-      </select>
+      <select id="user-signup-class" class="w-full border p-2 rounded bg-gradient-to-r from-green-50 to-white"></select>
     </div>
 
-    <!-- School Dropdown -->
     <label class="text-sm">School</label>
-    <select id="user-signup-school" 
-            class="w-full border p-2 rounded bg-gradient-to-r from-purple-50 to-white">
-    </select>
+    <select id="user-signup-school" class="w-full border p-2 rounded bg-gradient-to-r from-purple-50 to-white"></select>
 
     <div class="flex gap-2">
-      <button type="submit" 
-              class="bg-indigo-600 text-white px-3 py-2 rounded">Submit Signup</button>
-
-      <button id="show-login-btn" 
-              type="button" 
-              class="px-3 py-2 rounded border">Back</button>
+      <button type="submit" class="bg-indigo-600 text-white px-3 py-2 rounded">Submit Signup</button>
+      <button id="show-login-btn" type="button" class="px-3 py-2 rounded border">Back</button>
     </div>
-
     <div id="signup-error-message" class="text-sm text-red-600"></div>
   </form>
 </div>
 
+<!-- Robust script to populate classes & schools and toggle class-field -->
 <script>
-/* -------------------------
-   FIX: POPULATE CLASSES 1–8
-   ------------------------- */
-const classSelect = document.getElementById("user-signup-class");
-for (let i = 1; i <= 8; i++) {
-  const opt = document.createElement("option");
-  opt.value = i;
-  opt.textContent = "Class " + i;
-  classSelect.appendChild(opt);
-}
+  (function () {
+    const CLASSES = ["1st","2nd","3rd","4th","5th","6th","7th","8th"];
+    // If you have a schools array elsewhere, keep it; otherwise this default 80 list will be used:
+    const DEFAULT_SCHOOLS = Array.from({length:80}, (_,i) => `School ${i+1}`);
 
-/* -------------------------
-   SHOW/HIDE CLASS FIELD
-   BASED ON ROLE
-   ------------------------- */
-document.getElementById("user-signup-role").addEventListener("change", function () {
-  const classField = document.getElementById("signup-class-field");
+    function populateSignupClassDropdown() {
+      const classEl = document.getElementById('user-signup-class');
+      if (!classEl) return;
+      classEl.innerHTML = ''; // clear
+      // Add placeholder
+      const ph = document.createElement('option'); ph.value=''; ph.textContent='-- Select Class --';
+      classEl.appendChild(ph);
+      for (const c of CLASSES) {
+        const o = document.createElement('option');
+        o.value = c;
+        o.textContent = c;
+        classEl.appendChild(o);
+      }
+    }
 
-  if (this.value === "Student") {
-    classField.classList.remove("hidden");
-  } else {
-    classField.classList.add("hidden");
-  }
-});
+    function populateSignupSchoolDropdown() {
+      const schoolEl = document.getElementById('user-signup-school');
+      if (!schoolEl) return;
+      // If the page already populated schools elsewhere (e.g. SCHOOLS global), prefer that
+      let schools = window.SCHOOLS && Array.isArray(window.SCHOOLS) && window.SCHOOLS.length ? window.SCHOOLS : DEFAULT_SCHOOLS;
+      schoolEl.innerHTML = '';
+      const ph = document.createElement('option'); ph.value=''; ph.textContent='-- Select School --';
+      schoolEl.appendChild(ph);
+      for (const s of schools) {
+        const o = document.createElement('option');
+        o.value = s;
+        o.textContent = s;
+        schoolEl.appendChild(o);
+      }
+    }
+
+    function setupSignupRoleToggle() {
+      const roleEl = document.getElementById('user-signup-role');
+      const signupClassField = document.getElementById('signup-class-field');
+      if (!roleEl || !signupClassField) return;
+
+      roleEl.addEventListener('change', () => {
+        if (roleEl.value === 'Student') {
+          signupClassField.classList.remove('hidden');
+          // populate on-demand to guarantee it's filled even if something cleared it earlier
+          populateSignupClassDropdown();
+        } else {
+          signupClassField.classList.add('hidden');
+        }
+      });
+    }
+
+    function setupShowSignupButtons() {
+      // keep existing UI toggles working: "show-signup-btn" shows form; "show-login-btn" hides it
+      const showSignupBtn = document.getElementById('show-signup-btn');
+      const signupContainer = document.getElementById('user-signup-container');
+      const showLoginBtn = document.getElementById('show-login-btn');
+
+      if (showSignupBtn && signupContainer) {
+        showSignupBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          signupContainer.classList.remove('hidden');
+        });
+      }
+      if (showLoginBtn && signupContainer) {
+        showLoginBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          signupContainer.classList.add('hidden');
+        });
+      }
+    }
+
+    // Ensure code runs after DOM ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        populateSignupClassDropdown();
+        populateSignupSchoolDropdown();
+        setupSignupRoleToggle();
+        setupShowSignupButtons();
+      });
+    } else {
+      populateSignupClassDropdown();
+      populateSignupSchoolDropdown();
+      setupSignupRoleToggle();
+      setupShowSignupButtons();
+    }
+  })();
 </script>
 
       <!-- Quick info & leaderboard links -->
