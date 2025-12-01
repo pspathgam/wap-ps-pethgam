@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Winter Assignment Portal Zone Wagoora</title>
+    <title>Winter Assignment Portal Zone Wagoora (v8)</title>
     <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -15,9 +15,13 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, collection, query, onSnapshot, 
-            addDoc, serverTimestamp, getDocs, where, orderBy, deleteDoc, updateDoc
+            addDoc, serverTimestamp, getDocs, where, orderBy, deleteDoc, updateDoc,
+            setLogLevel
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getDatabase, ref as dbRef, update as dbUpdate, onValue as dbOnValue, set as dbSet } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        // Set log level to debug for thorough debugging
+        setLogLevel('debug');
 
         // Global Firebase variables provided by the environment
         const firebaseConfig = {
@@ -36,7 +40,7 @@
         const db = getFirestore(app);
         const rtdb = getDatabase(app);
 
-        // --- GLOBAL STATE ---
+        // --- GLOBAL STATE & FIREBASE PATHS ---
         let userId = null;
         let username = null;
         let role = null;
@@ -44,7 +48,17 @@
         let rtdbWatchId = null;
         let allUsers = {}; // Cache for all users loaded from Firestore for login validation
 
-        // --- CONSTANTS (UPDATED) ---
+        // Retrieve app ID and define collection paths based on environment rules
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // MANDATORY PUBLIC PATH STRUCTURE: /artifacts/{appId}/public/data/{collectionName}
+        const USER_COLLECTION_PATH = `artifacts/${appId}/public/data/users`;
+        const ASSIGNMENTS_COLLECTION_PATH = `artifacts/${appId}/public/data/assignments`;
+        const LEADERBOARD_COLLECTION_PATH = `artifacts/${appId}/public/data/leaderboard`;
+
+        const USER_COLLECTION = collection(db, USER_COLLECTION_PATH);
+
+        // --- CONSTANTS ---
         const AVAILABLE_CLASSES = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
         const AVAILABLE_SUBJECTS = ["Math", "English", "EVS", "Urdu", "Kashmiri", "SST"];
         const AVAILABLE_SCHOOLS = ["PS Pethgam Wagoora", "MS Wagoora", "HS Wagoora", "Other School"];
@@ -53,7 +67,6 @@
         const INITIAL_ADMIN = { 
             "Admin_Pethgam": { role: "Admin", pin: "0000", school: "PS Pethgam Wagoora" } 
         };
-        const USER_COLLECTION = collection(db, 'users');
 
         // --- UI ELEMENTS ---
         const errorEl = document.getElementById('error-message');
@@ -84,6 +97,7 @@
                 isAuthReady = true;
                 checkSession();
             });
+            // Using anonymous sign-in to get a temporary UID for firestore rules
             await signInAnonymously(auth);
         }
 
@@ -97,6 +111,7 @@
                 const data = doc.data();
                 allUsers[data.username] = { ...data, id: doc.id };
             });
+            console.log("User cache loaded/refreshed:", allUsers);
             return allUsers;
         }
 
@@ -121,6 +136,7 @@
         async function handleStudentSignup(event) {
             event.preventDefault();
             
+            // Trim whitespace from user inputs (CRITICAL: prevents silent data mismatch)
             const signupUsername = document.getElementById('student-signup-username').value.trim();
             const signupPin = document.getElementById('student-signup-pin').value.trim();
             const signupClass = document.getElementById('student-signup-class').value;
@@ -131,6 +147,7 @@
                 signupErrorEl.textContent = 'Please fill all fields.';
                 return;
             }
+            // Check if username already exists in the latest cache
             if (allUsers[signupUsername] || INITIAL_ADMIN[signupUsername]) {
                 signupErrorEl.textContent = 'Error: Username already exists!';
                 return;
@@ -140,16 +157,17 @@
                 // Students sign up with Student role
                 await addDoc(USER_COLLECTION, {
                     username: signupUsername,
-                    role: 'Student',
+                    role: 'Student', // Stored as 'Student'
                     pin: signupPin,
                     class: signupClass,
-                    school: signupSchool, // Added School field
+                    school: signupSchool,
                     createdAt: serverTimestamp()
                 });
                 
                 signupErrorEl.textContent = 'Signup successful! Please log in now.';
                 studentSignupFormEl.reset();
-                await loadAllUsers(); // Update cache
+                // Ensure cache is updated immediately after successful creation
+                await loadAllUsers(); 
                 setTimeout(showLogin, 2000);
 
             } catch (e) {
@@ -158,7 +176,7 @@
             }
         }
         
-        // --- LOGIN/SESSION LOGIC ---
+        // --- LOGIN/SESSION LOGIC (IMPROVED PIN HANDLING) ---
         
         function handleLogout(suppressMessage = false) {
             stopSharing();
@@ -186,32 +204,67 @@
         async function handleLogin(event) {
             event.preventDefault();
             
-            role = document.getElementById('role-select').value;
-            username = document.getElementById('username-input').value.trim();
-            const pin = document.getElementById('pin-input').value.trim();
+            // 1. Get Inputs and TRIM whitespace (CRITICAL)
+            const selectedRole = document.getElementById('role-select').value;
+            const inputUsername = document.getElementById('username-input').value.trim();
+            const inputPin = document.getElementById('pin-input').value.trim(); // Trimmed input pin
             
             errorEl.textContent = '';
             
-            // 1. Check hardcoded Admin first
-            let school = null;
-            let userClass = null; // Initialize class variable
-            const initialUser = INITIAL_ADMIN[username];
-            if (initialUser && initialUser.role === role && initialUser.pin === pin) {
-                 school = initialUser.school;
-                 userClass = initialUser.class; // Admin doesn't have class, but keep structure for function call
-                 await finalizeLogin(username, role, userClass, school);
-                 return;
+            if (!inputUsername || !inputPin || !selectedRole) {
+                errorEl.textContent = 'Please fill in all login fields.';
+                return;
             }
-            
-            // 2. Check users loaded from Firestore
-            const userData = allUsers[username];
 
-            if (userData && userData.role === role && userData.pin === pin) {
-                school = userData.school;
-                userClass = userData.class;
-                await finalizeLogin(username, role, userClass, school);
+            // 2. Refresh User Cache (CRITICAL)
+            await loadAllUsers(); 
+            
+            let userData = null;
+            let school = null;
+            let userClass = null;
+            
+            // 3. Check hardcoded Admin first
+            const initialUser = INITIAL_ADMIN[inputUsername];
+            if (initialUser) {
+                 userData = initialUser;
             } else {
-                errorEl.textContent = 'Login Failed: Invalid Role, Username, or PIN.';
+                 // 4. Check users loaded from Firestore cache
+                 userData = allUsers[inputUsername];
+            }
+
+            console.log("--- Attempting Login ---");
+            console.log("Input: Username:", inputUsername, "Role:", selectedRole, "PIN:", inputPin);
+
+            if (userData) {
+                console.log("Stored Data:", userData);
+
+                // A. Validate PIN (comparing trimmed inputPin with stored userData.pin)
+                if (userData.pin === inputPin) {
+                    // B. Validate ROLE
+                    if (userData.role === selectedRole) {
+                        school = userData.school;
+                        userClass = userData.class;
+                        
+                        // Set global state and session storage
+                        username = inputUsername;
+                        role = selectedRole; 
+                        
+                        await finalizeLogin(username, role, userClass, school);
+                        return;
+                    } else {
+                        // Role mismatch error
+                        errorEl.textContent = `Login Failed: Invalid Role. Please ensure you selected the correct role (${userData.role}) for this username.`;
+                        console.error("Login Failed: Role mismatch. Stored:", userData.role, "Selected:", selectedRole);
+                    }
+                } else {
+                    // PIN mismatch error
+                    errorEl.textContent = 'Login Failed: Invalid PIN.';
+                    console.error("Login Failed: PIN mismatch. Stored PIN:", userData.pin, "Input PIN:", inputPin);
+                }
+            } else {
+                // User not found error
+                errorEl.textContent = 'Login Failed: Invalid Username or Role combination.';
+                console.error("Login Failed: Username not found in cache or admin list.");
             }
         }
         
@@ -354,10 +407,12 @@
         function renderUserList(users) {
              if (role !== 'Admin') return;
              
+             // Update: Added PIN column for debugging/verification
              userListTableBodyEl.innerHTML = users.map(user => `
                  <tr class="text-sm border-t border-gray-600">
                      <td class="p-3 font-semibold text-yellow-400">${user.username}</td>
                      <td class="p-3">${user.role}</td>
+                     <td class="p-3 font-mono text-xs">${user.pin}</td> 
                      <td class="p-3">${user.class || '-'}</td>
                      <td class="p-3">${user.school || 'N/A'}</td>
                      <td class="p-3 text-right">
@@ -381,10 +436,11 @@
              }
              
              try {
-                 const userDocRef = doc(db, 'users', userIdToDelete);
+                 const userDocRef = doc(db, USER_COLLECTION_PATH, userIdToDelete);
                  await deleteDoc(userDocRef);
                  errorEl.textContent = `User ${userNameToDelete} deleted successfully.`;
-                 await loadAllUsers(); // Refresh cache
+                 // Refresh cache after deletion to maintain login integrity
+                 await loadAllUsers(); 
              } catch (e) {
                  console.error("Error deleting user:", e);
                  errorEl.textContent = `Error deleting user: ${e.message}`;
@@ -396,9 +452,9 @@
             
             const newUserRole = document.getElementById('new-user-role').value;
             const newUsername = document.getElementById('new-user-username').value.trim();
-            const newPin = document.getElementById('new-user-pin').value.trim();
-            const newClass = document.getElementById('new-user-class').value;
+            const newPin = document.getElementById('new-user-pin').value.trim(); // Trimmed pin
             const newSchool = document.getElementById('new-user-school').value;
+            const newClass = document.getElementById('new-user-class').value;
             const adminErrorEl = document.getElementById('admin-error-message');
 
             if (!newUserRole || !newUsername || !newPin || !newSchool || (newUserRole === 'Student' && !newClass)) {
@@ -406,6 +462,7 @@
                 return;
             }
 
+            // Check if username already exists in the latest cache
             if (allUsers[newUsername] || INITIAL_ADMIN[newUsername]) {
                 adminErrorEl.textContent = 'Error: Username already exists!';
                 return;
@@ -414,19 +471,21 @@
             try {
                 const userData = {
                     username: newUsername,
-                    role: newUserRole,
-                    pin: newPin,
+                    role: newUserRole, // Stored as 'Teacher' or 'Student'
+                    pin: newPin, // Stored as trimmed pin
                     school: newSchool,
                     class: (newUserRole === 'Student') ? newClass : null, // Class only for Students
                     createdBy: username,
                     createdAt: serverTimestamp()
                 };
                 
+                // Uses the corrected USER_COLLECTION path
                 await addDoc(USER_COLLECTION, userData);
                 
                 adminErrorEl.textContent = `${newUserRole} ${newUsername} added successfully!`;
                 document.getElementById('user-add-form').reset();
-                await loadAllUsers(); // Update cache
+                // Ensure cache is updated immediately after successful creation
+                await loadAllUsers(); 
 
             } catch (e) {
                 console.error("Admin user add error:", e);
@@ -473,7 +532,8 @@
                     status: 'Active'
                 };
                 
-                const assignmentsCollectionRef = collection(db, 'assignments');
+                // Uses the corrected ASSIGNMENTS_COLLECTION_PATH
+                const assignmentsCollectionRef = collection(db, ASSIGNMENTS_COLLECTION_PATH);
                 await addDoc(assignmentsCollectionRef, assignmentData);
                 
                 errorEl.textContent = 'Assignment published successfully!';
@@ -488,7 +548,9 @@
             if (!isAuthReady) return;
 
             // 1. Listen for all assignments
-            const assignmentsQuery = query(collection(db, 'assignments'), orderBy('timestamp', 'desc'));
+            const assignmentsCollectionRef = collection(db, ASSIGNMENTS_COLLECTION_PATH);
+            const assignmentsQuery = query(assignmentsCollectionRef, orderBy('timestamp', 'desc'));
+            
             onSnapshot(assignmentsQuery, (snapshot) => {
                 const assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderAssignments(assignments);
@@ -497,7 +559,9 @@
             });
             
             // 2. Listen for leaderboard data
-            const leaderboardQuery = query(collection(db, 'leaderboard'), orderBy('score', 'desc'));
+            const leaderboardCollectionRef = collection(db, LEADERBOARD_COLLECTION_PATH);
+            const leaderboardQuery = query(leaderboardCollectionRef, orderBy('score', 'desc'));
+            
             onSnapshot(leaderboardQuery, (snapshot) => {
                 const scores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderLeaderboard(scores);
@@ -600,7 +664,7 @@
 
             try {
                 // Check if student already submitted for this assignment
-                const leaderboardCollectionRef = collection(db, 'leaderboard');
+                const leaderboardCollectionRef = collection(db, LEADERBOARD_COLLECTION_PATH);
                 const existingSubmissionsQuery = query(
                     leaderboardCollectionRef, 
                     where('assignmentId', '==', assignmentId), 
@@ -642,7 +706,6 @@
                 aggregatedScores[key].totalScore += s.score;
                 aggregatedScores[key].assignments += 1;
             });
-            
             // Convert to array and sort by totalScore (descending)
             const sortedLeaderboard = Object.values(aggregatedScores).sort((a, b) => b.totalScore - a.totalScore);
 
@@ -790,7 +853,8 @@
                 onlyOnce: false
             });
         }
-         // --- INITIALIZATION ---
+        
+        // --- INITIALIZATION ---
 
         window.onload = function() {
             
@@ -986,7 +1050,7 @@
                 
                 <button type="submit" class="w-full px-4 py-3 rounded-lg font-semibold transition duration-200 bg-green-500 text-white hover:bg-green-600 shadow-soft">
                     Register as Student
-                </button>
+                    </button>
             </form>
             <p class="text-xs text-gray-500 mt-4 text-center">
                 <button id="back-to-login-btn" class="text-blue-400 hover:text-blue-300 font-semibold">
@@ -1179,8 +1243,9 @@
                             </button>
                             <p id="admin-error-message" class="text-sm text-red-500 mt-2 text-center"></p>
                         </form>
-    </div>
-<!-- Current Users List (Teacher/Student Removal) -->
+                    </div>
+
+                    <!-- Current Users List (Teacher/Student Removal) -->
                     <h2 class="text-2xl font-bold text-gray-200 mb-4">Current Portal Users</h2>
                     <div class="card p-4 rounded-xl overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-600">
@@ -1188,13 +1253,14 @@
                                 <tr class="text-left text-gray-300 text-xs uppercase tracking-wider">
                                     <th class="p-3">Username</th>
                                     <th class="p-3">Role</th>
+                                    <th class="p-3">PIN</th> <!-- New Column -->
                                     <th class="p-3">Class</th>
                                     <th class="p-3">School</th>
                                     <th class="p-3 text-right">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="user-list-table-body" class="divide-y divide-gray-700">
-                                <tr><td colspan="5" class="text-center p-4 text-gray-500">Loading user list...</td></tr>
+                                <tr><td colspan="6" class="text-center p-4 text-gray-500">Loading user list...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1252,3 +1318,15 @@
     </div>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+                            
+                                
+                                                                    
