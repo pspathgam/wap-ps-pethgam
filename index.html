@@ -306,69 +306,405 @@
         }
 
         async function checkSession() {
-            if (isAuthReady) {
-                await loadAllUsers(); 
+<script type="module">
+/*
+  Fixed Firebase + Auth + DOM timing script for Winter Assignment Portal (v11 - Auth Fix)
+  - All DOM access happens after DOMContentLoaded
+  - setLogLevel imported from firebase-app
+  - Robust anonymous sign-in with try/catch
+  - Loads user cache after auth is ready
+*/
 
-                const loggedIn = sessionStorage.getItem('portal_logged_in') === 'true';
-                if (loggedIn) {
-                    username = sessionStorage.getItem('portal_username');
-                    role = sessionStorage.getItem('portal_role');
-                    transitionToAssignmentPortal(username, role);
-                } else {
-                    loginContainerEl.classList.remove('hidden');
-                    assignmentContainerEl.classList.add('hidden');
-                    userSignupContainerEl.classList.add('hidden');
-                }
-            }
+import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { 
+    getFirestore, doc, setDoc, collection, query, onSnapshot, 
+    addDoc, serverTimestamp, getDocs, where, orderBy, deleteDoc, updateDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getDatabase, ref as dbRef, update as dbUpdate, onValue as dbOnValue, set as dbSet } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+// Set verbose logging for debugging (can be lowered in production)
+setLogLevel('debug');
+
+// Firebase config (unchanged)
+const firebaseConfig = {
+    apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
+    authDomain: "wap-ps-pethgam.firebaseapp.com",
+    databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
+    projectId: "wap-ps-pethgam",
+    storageBucket: "wap-ps-pethgam.firebasestorage.app",
+    messagingSenderId: "430925411362",
+    appId: "1:430925411362:web:22857dee585d02fc54467b"
+};
+
+// Initialize Firebase services
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const rtdb = getDatabase(app);
+
+// --- GLOBAL STATE ---
+let userId = null;
+let username = null;
+let role = null;
+let isAuthReady = false;
+let rtdbWatchId = null;
+let allUsers = {}; // Cache for users
+
+// App ID & collection path (keeps your original structure)
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const USER_COLLECTION_PATH = `artifacts/${appId}/public/data/users`;
+const ASSIGNMENTS_COLLECTION_PATH = `artifacts/${appId}/public/data/assignments`;
+const LEADERBOARD_COLLECTION_PATH = `artifacts/${appId}/public/data/leaderboard`;
+
+const USER_COLLECTION = collection(db, USER_COLLECTION_PATH);
+
+// --- CONSTANTS ---
+const AVAILABLE_CLASSES = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
+const AVAILABLE_SUBJECTS = ["Math", "English", "EVS", "Urdu", "Kashmiri", "SST"];
+const AVAILABLE_SCHOOLS = ["PS Pethgam Wagoora", "MS Wagoora", "HS Wagoora", "Other School"];
+const TROPHY_THRESHOLDS = { GOLD: 6000, SILVER: 4000, BRONZE: 2000 };
+
+// Initial admin (keys are lowercase for case-insensitive checks)
+const INITIAL_ADMIN = { 
+    "admin_pethgam": { role: "Admin", pin: "0000", school: "PS Pethgam Wagoora", status: "Approved", username: "Admin_Pethgam" } 
+};
+
+// We'll query DOM elements after DOMContentLoaded
+let errorEl, loginFormEl, loginContainerEl, userSignupFormEl, userSignupContainerEl;
+let assignmentContainerEl, welcomeMessageEl, teacherViewEl, studentViewEl, adminViewEl;
+let userListTableBodyEl, assignmentFormEl, assignmentListEl, leaderboardTableBodyEl, notificationMarqueeEl;
+let locationControlsEl, signupClassFieldEl;
+
+// --- HELPERS & FIREBASE INTERACTIONS ---
+
+async function initAuth() {
+    // onAuthStateChanged will set userId and then we can call checkSession
+    return new Promise((resolve) => {
+        const unsub = onAuthStateChanged(auth, (user) => {
+            if (user) userId = user.uid;
+            else userId = null;
+            isAuthReady = true;
+            // resolve once we've seen an auth state change at least once
+            resolve();
+        });
+    });
+}
+
+async function ensureAnonymousSignIn() {
+    try {
+        // Only sign in if there's no current user
+        if (!auth.currentUser) {
+            await signInAnonymously(auth);
+            console.log("Signed in anonymously to Firebase Auth.");
+        } else {
+            console.log("Already authenticated (existing user).");
         }
+    } catch (err) {
+        console.error("Anonymous sign-in failed:", err);
+        // Keep app usable offline/limited — but show error in UI if available
+        if (errorEl) errorEl.textContent = "Error connecting to backend. Some features may not work.";
+    }
+}
 
-        function transitionToAssignmentPortal(user, userRole) {
-            loginContainerEl.classList.add('hidden');
-            userSignupContainerEl.classList.add('hidden');
-            assignmentContainerEl.classList.remove('hidden');
-            welcomeMessageEl.textContent = `Welcome, ${user} (${userRole} from ${sessionStorage.getItem('portal_school')})!`;
-            
-            // Role-Based View Switching
-            const isAdmin = userRole === 'Admin';
-            const isTeacher = userRole === 'Teacher';
-            const isStudent = userRole === 'Student';
-            
-            // Teacher/Admin can see assignment form
-            teacherViewEl.classList.toggle('hidden', !(isTeacher || isAdmin)); 
-            // Student sees assignment list
-            studentViewEl.classList.toggle('hidden', !isStudent);
-            // Admin only views
-            adminViewEl.classList.toggle('hidden', !isAdmin);
-            document.getElementById('nav-user-management').classList.toggle('hidden', !isAdmin);
-            document.getElementById('nav-location').classList.toggle('hidden', !isAdmin);
-            
-            locationControlsEl.classList.toggle('hidden', !isAdmin); 
-            
-            // Populate Class/Subject/School dropdowns
-            if(isTeacher || isAdmin) {
-                 const classSelect = document.getElementById('assignment-class-select');
-                 const subjectSelect = document.getElementById('assignment-subject-select');
-                 classSelect.innerHTML = AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
-                 subjectSelect.innerHTML = AVAILABLE_SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
-                 
-                 // Admin User Management Fields
-                 if (isAdmin) {
-                     document.getElementById('new-user-class').innerHTML = AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
-                     document.getElementById('new-user-school').innerHTML = AVAILABLE_SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join('');
-                 }
+async function loadAllUsers() {
+    try {
+        const snapshot = await getDocs(USER_COLLECTION);
+        allUsers = {};
+        snapshot.forEach(d => {
+            const data = d.data();
+            if (data && data.username) {
+                // store with lowercase key for case-insensitive lookup
+                allUsers[String(data.username).toLowerCase()] = { ...data, id: d.id };
             }
-            
-            // Set default view based on role
-            if (isAdmin) {
-                showView('user-management'); // Admin lands on User Management
-                setupUserListListener(); 
-            } else {
-                showView('assignments'); // Student/Teacher lands on Assignments
-            }
-            
-            setupAssignmentListeners();
-            setupDataListener(); // Start listening for live location
-            setupNotificationListener(); // Start listening for live notifications
+        });
+        console.log("User cache loaded/refreshed:", Object.keys(allUsers).length, "users.");
+        return allUsers;
+    } catch (e) {
+        console.error("Failed to load users from Firestore:", e);
+        // fallback: keep existing cache (if any) and return it
+        return allUsers || {};
+    }
+}
+
+// --- UI Functions (operate after DOM ready) ---
+
+function showSignup() {
+    loginContainerEl.classList.add('hidden');
+    userSignupContainerEl.classList.remove('hidden');
+
+    // Reset and populate fields
+    document.getElementById('user-signup-role').value = '';
+    document.getElementById('user-signup-class').innerHTML =
+        '<option value="">-- Select Class --</option>' +
+        AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
+    document.getElementById('user-signup-school').innerHTML =
+        AVAILABLE_SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join('');
+    document.getElementById('signup-error-message').textContent = '';
+    signupClassFieldEl.classList.add('hidden');
+}
+
+function showLogin() {
+    loginContainerEl.classList.remove('hidden');
+    userSignupContainerEl.classList.add('hidden');
+    document.getElementById('signup-error-message').textContent = '';
+}
+
+async function handleUserSignup(event) {
+    event.preventDefault();
+    const signupRole = document.getElementById('user-signup-role').value;
+    const rawUsername = document.getElementById('user-signup-username').value.trim();
+    const signupUsername = rawUsername.toLowerCase();
+    const signupPin = document.getElementById('user-signup-pin').value.trim();
+    const signupClass = document.getElementById('user-signup-class').value;
+    const signupSchool = document.getElementById('user-signup-school').value;
+    const signupErrorEl = document.getElementById('signup-error-message');
+
+    if (!signupRole || !rawUsername || !signupPin || !signupSchool || (signupRole === 'Student' && !signupClass)) {
+        signupErrorEl.textContent = 'Please fill all required fields.';
+        return;
+    }
+
+    // Re-check cache before writing
+    await loadAllUsers();
+
+    if (allUsers[signupUsername] || INITIAL_ADMIN[signupUsername]) {
+        signupErrorEl.textContent = 'Error: Username already exists! Please choose another one.';
+        return;
+    }
+
+    try {
+        await addDoc(USER_COLLECTION, {
+            username: rawUsername,
+            role: signupRole,
+            pin: signupPin,
+            class: (signupRole === 'Student') ? signupClass : null,
+            school: signupSchool,
+            status: 'Pending',
+            createdAt: serverTimestamp()
+        });
+
+        signupErrorEl.textContent = `Signup successful for ${rawUsername}! Your account is pending Admin approval.`;
+        userSignupFormEl.reset();
+        await loadAllUsers(); // refresh cache
+    } catch (e) {
+        console.error("Signup error:", e);
+        signupErrorEl.textContent = `Signup error: ${e.message || String(e)}`;
+    }
+}
+
+function handleLogout(suppressMessage = false) {
+    // stopSharing(); // if you have a sharing function, ensure it's defined elsewhere
+    sessionStorage.clear();
+
+    loginContainerEl.classList.remove('hidden');
+    assignmentContainerEl.classList.add('hidden');
+    userSignupContainerEl.classList.add('hidden');
+
+    teacherViewEl.classList.add('hidden');
+    studentViewEl.classList.add('hidden');
+    adminViewEl.classList.add('hidden');
+
+    if (!suppressMessage) errorEl.textContent = 'Logged out successfully.';
+    else errorEl.textContent = '';
+
+    signOut(auth).catch(err => console.error("Firebase logout error:", err));
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+
+    const selectedRole = document.getElementById('role-select').value;
+    const inputRawUsername = document.getElementById('username-input').value.trim();
+    const inputUsername = inputRawUsername.toLowerCase();
+    const inputPin = document.getElementById('pin-input').value.trim();
+
+    errorEl.textContent = '';
+
+    if (!inputUsername || !inputPin || !selectedRole) {
+        errorEl.textContent = 'Please fill in all login fields.';
+        return;
+    }
+
+    // Refresh user cache
+    await loadAllUsers();
+
+    let userData = null;
+    let school = null;
+    let userClass = null;
+
+    // Check hardcoded admin first
+    const initialUser = INITIAL_ADMIN[inputUsername];
+    if (initialUser) {
+        userData = initialUser;
+    } else {
+        userData = allUsers[inputUsername];
+    }
+
+    console.log("--- Attempting Login ---", { inputUsername, selectedRole });
+
+    if (!userData) {
+        errorEl.textContent = 'Login Failed: Invalid Username or Role combination.';
+        console.error("Login Failed: Username not found for key:", inputUsername);
+        return;
+    }
+
+    // Validate PIN
+    if (String(userData.pin) !== inputPin) {
+        errorEl.textContent = 'Login Failed: Invalid PIN.';
+        console.error("Login Failed: PIN mismatch.");
+        return;
+    }
+
+    // Validate role
+    if (String(userData.role) !== selectedRole) {
+        errorEl.textContent = 'Login Failed: Invalid Role. Please select the correct role.';
+        console.error("Login Failed: Role mismatch. Stored:", userData.role, "Selected:", selectedRole);
+        return;
+    }
+
+    // Validate status
+    if (String(userData.status) !== 'Approved') {
+        errorEl.textContent = 'Login Failed: Your account is awaiting Admin approval.';
+        console.error("Login Failed: Account status is", userData.status);
+        return;
+    }
+
+    // Success: finalize login using stored username (original case)
+    const displayName = userData.username || inputRawUsername;
+    userClass = userData.class;
+    school = userData.school;
+    await finalizeLogin(displayName, selectedRole, userClass, school);
+}
+
+async function finalizeLogin(user, userRole, userClass, userSchool) {
+    sessionStorage.setItem('portal_logged_in', 'true');
+    sessionStorage.setItem('portal_username', user);
+    sessionStorage.setItem('portal_role', userRole);
+    sessionStorage.setItem('portal_class', userClass || '');
+    sessionStorage.setItem('portal_school', userSchool || '');
+
+    username = user;
+    role = userRole;
+
+    transitionToAssignmentPortal(user, userRole);
+}
+
+async function checkSession() {
+    if (!isAuthReady) return;
+    await loadAllUsers();
+
+    const loggedIn = sessionStorage.getItem('portal_logged_in') === 'true';
+    if (loggedIn) {
+        username = sessionStorage.getItem('portal_username');
+        role = sessionStorage.getItem('portal_role');
+        transitionToAssignmentPortal(username, role);
+    } else {
+        loginContainerEl.classList.remove('hidden');
+        assignmentContainerEl.classList.add('hidden');
+        userSignupContainerEl.classList.add('hidden');
+    }
+}
+
+function transitionToAssignmentPortal(user, userRole) {
+    loginContainerEl.classList.add('hidden');
+    userSignupContainerEl.classList.add('hidden');
+    assignmentContainerEl.classList.remove('hidden');
+
+    welcomeMessageEl.textContent = `Welcome, ${user} (${userRole} from ${sessionStorage.getItem('portal_school')})!`;
+
+    const isAdmin = (userRole === 'Admin');
+    const isTeacher = (userRole === 'Teacher');
+    const isStudent = (userRole === 'Student');
+
+    teacherViewEl.classList.toggle('hidden', !(isTeacher || isAdmin));
+    studentViewEl.classList.toggle('hidden', !isStudent);
+    adminViewEl.classList.toggle('hidden', !isAdmin);
+
+    const navUserMgmt = document.getElementById('nav-user-management');
+    const navLocation = document.getElementById('nav-location');
+    if (navUserMgmt) navUserMgmt.classList.toggle('hidden', !isAdmin);
+    if (navLocation) navLocation.classList.toggle('hidden', !isAdmin);
+
+    locationControlsEl.classList.toggle('hidden', !isAdmin);
+
+    // Populate selects for teacher/admin
+    if (isTeacher || isAdmin) {
+        const classSelect = document.getElementById('assignment-class-select');
+        const subjectSelect = document.getElementById('assignment-subject-select');
+        if (classSelect) classSelect.innerHTML = AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
+        if (subjectSelect) subjectSelect.innerHTML = AVAILABLE_SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
+
+        if (isAdmin) {
+            const newUserClass = document.getElementById('new-user-class');
+            const newUserSchool = document.getElementById('new-user-school');
+            if (newUserClass) newUserClass.innerHTML =
+                '<option value="">-- Select Class --</option>' + AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
+            if (newUserSchool) newUserSchool.innerHTML = AVAILABLE_SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+    }
+
+    if (isAdmin) {
+        showView('user-management');
+        setupUserListListener();
+    } else {
+        showView('assignments');
+    }
+
+    setupAssignmentListeners();
+    setupDataListener();
+    setupNotificationListener();
+}
+
+// --- PLACEHOLDER/NO-OPS for functions referenced but not included in this snippet ---
+// If you already have implementations elsewhere in your file, keep them.
+// Otherwise, these placeholders prevent runtime errors when calling them.
+function showView(viewName) {
+    // Implement or keep your existing implementation. Minimal safe switch:
+    const views = document.querySelectorAll('[data-view]');
+    views.forEach(v => v.classList.add('hidden'));
+    const el = document.querySelector(`[data-view="${viewName}"]`);
+    if (el) el.classList.remove('hidden');
+}
+function setupUserListListener(){ /* implement or keep your existing function */ }
+function setupAssignmentListeners(){ /* implement or keep your existing function */ }
+function setupDataListener(){ /* implement or keep your existing function */ }
+function setupNotificationListener(){ /* implement or keep your existing function */ }
+
+// --- BOOTSTRAP: run after DOM is ready ---
+document.addEventListener('DOMContentLoaded', async () => {
+    // Cache DOM nodes
+    errorEl = document.getElementById('error-message');
+    loginFormEl = document.getElementById('login-form');
+    loginContainerEl = document.getElementById('login-container');
+    userSignupFormEl = document.getElementById('user-signup-form');
+    userSignupContainerEl = document.getElementById('user-signup-container');
+    assignmentContainerEl = document.getElementById('assignment-portal-container');
+    welcomeMessageEl = document.getElementById('welcome-message');
+    teacherViewEl = document.getElementById('teacher-view');
+    studentViewEl = document.getElementById('student-view');
+    adminViewEl = document.getElementById('admin-view');
+    userListTableBodyEl = document.getElementById('user-list-table-body');
+    assignmentFormEl = document.getElementById('assignment-form');
+    assignmentListEl = document.getElementById('assignment-list');
+    leaderboardTableBodyEl = document.getElementById('leaderboard-table-body');
+    notificationMarqueeEl = document.getElementById('notification-marquee');
+    locationControlsEl = document.getElementById('location-controls');
+    signupClassFieldEl = document.getElementById('signup-class-field');
+
+    // Wire up form handlers safely (if elements exist)
+    if (loginFormEl) loginFormEl.addEventListener('submit', handleLogin);
+    const signupToggleBtn = document.getElementById('show-signup-btn');
+    if (signupToggleBtn) signupToggleBtn.addEventListener('click', showSignup);
+    const showLoginBtn = document.getElementById('show-login-btn');
+    if (showLoginBtn) showLoginBtn.addEventListener('click', showLogin);
+    if (userSignupFormEl) userSignupFormEl.addEventListener('submit', handleUserSignup);
+
+    // Initialize auth and sign-in
+    await initAuth();             // wait for onAuthStateChanged event at least once
+    await ensureAnonymousSignIn(); // sign-in if necessary
+    await checkSession();         // load user cache and set up UI according to session
+});
         }
         
         // --- NOTIFICATION MANAGEMENT (RTDB) ---
