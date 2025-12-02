@@ -71,74 +71,97 @@
     <div id="auth-card">
       <h3 class="text-lg font-semibold mb-2">Login</h3>
 
-        <!-- Error message -->
-        <div id="error-message" class="text-sm text-red-600 mb-2"></div>
+      <!-- Error message -->
+      <div id="error-message" class="text-sm text-red-600 mb-2"></div>
 
-        <form id="login-form" class="space-y-2">
-        <form id="login-form" class="space-y-2">
-  <label class="block text-sm">Login as</label>
-  <select id="role-select" class="p-2 border rounded w-full">
-    <option value="">-- Select Role --</option>
-    <option value="Admin">Admin</option>
-    <option value="Teacher">Teacher</option>
-    <option value="Student">Student</option>
-  </select>
+      <!-- LOGIN FORM (FIXED) -->
+      <form id="login-form" class="space-y-2">
 
-  <input id="username-input" placeholder="Username" required class="w-full border p-2 rounded" />
-  <input id="pin-input" placeholder="4-6 digit PIN" type="password" required class="w-full border p-2 rounded" />
+        <label class="block text-sm">Login as</label>
+        <select id="role-select" class="p-2 border rounded w-full">
+          <option value="">-- Select Role --</option>
+          <option value="Admin">Admin</option>
+          <option value="Teacher">Teacher</option>
+          <option value="Student">Student</option>
+        </select>
 
-  <div class="flex gap-2">
-    <!-- FIXED BUTTON -->
-    <button id="login-button" type="button"
-            class="bg-blue-600 text-white px-3 py-2 rounded">
-      Login
-    </button>
+        <input id="username-input" placeholder="Username" required class="w-full border p-2 rounded" />
+        <input id="pin-input" placeholder="4-6 digit PIN" type="password" required class="w-full border p-2 rounded" />
 
-    <button id="show-signup-btn" type="button"
-            class="bg-green-600 text-white px-3 py-2 rounded">
-      Sign Up
-    </button>
+        <div class="flex gap-2">
+          <!-- FIXED LOGIN BUTTON -->
+          <button id="login-button" type="button"
+                  class="bg-blue-600 text-white px-3 py-2 rounded">
+            Login
+          </button>
 
-    <button id="logout-btn" type="button"
-            class="ml-auto text-sm text-gray-600 hidden">
-      Logout
-    </button>
-  </div>
+          <button id="show-signup-btn" type="button"
+                  class="bg-green-600 text-white px-3 py-2 rounded">
+            Sign Up
+          </button>
 
-  <div id="login-error-message" class="text-sm text-red-600"></div>
-        </form>
-          </div>
-        </form>
+          <button id="logout-btn" type="button"
+                  class="ml-auto text-sm text-gray-600 hidden">
+            Logout
+          </button>
+        </div>
 
-<!-- Signup form -->
-<div id="user-signup-container" class="mt-4 hidden">
-  <h4 class="font-semibold">Sign up</h4>
-  <form id="user-signup-form" class="space-y-2">
-    <label class="text-sm">Role</label>
-    <select id="user-signup-role" class="p-2 border rounded w-full bg-gradient-to-r from-yellow-50 to-blue-50">
-      <option value="">-- Select Role --</option>
-      <option value="Teacher">Teacher</option>
-      <option value="Student">Student</option>
-    </select>
+        <div id="login-error-message" class="text-sm text-red-600"></div>
 
-    <input id="user-signup-username" placeholder="Username" class="w-full border p-2 rounded bg-gradient-to-r from-blue-50 to-white" />
-    <input id="user-signup-pin" placeholder="4-6 digit PIN" class="w-full border p-2 rounded bg-gradient-to-r from-yellow-50 to-white" />
-
-    <div id="signup-class-field" class="hidden">
-      <label class="text-sm">Class</label>
-      <select id="user-signup-class" class="w-full border p-2 rounded bg-gradient-to-r from-green-50 to-white"></select>
+      </form>
     </div>
 
-    <label class="text-sm">School</label>
-    <select id="user-signup-school" class="w-full border p-2 rounded bg-gradient-to-r from-purple-50 to-white"></select>
+    <!-- SIGNUP FORM -->
+    <div id="user-signup-container" class="mt-4 hidden">
+      <h4 class="font-semibold">Sign up</h4>
 
-    <div class="flex gap-2">
-      <button type="submit" class="bg-indigo-600 text-white px-3 py-2 rounded">Submit Signup</button>
-      <button id="show-login-btn" type="button" class="px-3 py-2 rounded border">Back</button>
+      <form id="user-signup-form" class="space-y-2">
+
+        <label class="text-sm">Role</label>
+        <select id="user-signup-role"
+                class="p-2 border rounded w-full bg-gradient-to-r from-yellow-50 to-blue-50">
+          <option value="">-- Select Role --</option>
+          <option value="Teacher">Teacher</option>
+          <option value="Student">Student</option>
+        </select>
+
+        <input id="user-signup-username"
+               placeholder="Username"
+               class="w-full border p-2 rounded bg-gradient-to-r from-blue-50 to-white" />
+
+        <input id="user-signup-pin"
+               placeholder="4-6 digit PIN"
+               class="w-full border p-2 rounded bg-gradient-to-r from-yellow-50 to-white" />
+
+        <div id="signup-class-field" class="hidden">
+          <label class="text-sm">Class</label>
+          <select id="user-signup-class"
+                  class="w-full border p-2 rounded bg-gradient-to-r from-green-50 to-white"></select>
+        </div>
+
+        <label class="text-sm">School</label>
+        <select id="user-signup-school"
+                class="w-full border p-2 rounded bg-gradient-to-r from-purple-50 to-white"></select>
+
+        <div class="flex gap-2">
+          <button type="submit" class="bg-indigo-600 text-white px-3 py-2 rounded">
+            Submit Signup
+          </button>
+
+          <button id="show-login-btn" type="button"
+                  class="px-3 py-2 rounded border">
+            Back
+          </button>
+        </div>
+
+        <div id="signup-error-message" class="text-sm text-red-600"></div>
+
+      </form>
     </div>
-    <div id="signup-error-message" class="text-sm text-red-600"></div>
-  </form>
-</div>
+
+  </div> <!-- end column -->
+
+</div> <!-- end grid -->
 
 <!-- Robust script to populate classes & schools and toggle class-field -->
 <script>
