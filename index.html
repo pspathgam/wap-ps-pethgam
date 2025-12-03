@@ -1,709 +1,180 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Winter Assignment Portal — Zone Wagoora</title>
-  <!-- Tailwind CDN -->
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pethgam Wagoora Winter Assignment Portal</title>
 
-<style>
-  body { 
-    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; 
-    background: linear-gradient(180deg,#dfefff 0%, #ffffff 100%);
-  }
+    <!-- Load Tailwind CSS (moved before custom styles) -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  /* ✨ Double-Shade Portal Cards */
-  .glass { 
-    background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(235,245,255,0.7));
-    backdrop-filter: blur(6px); 
-    border-radius: 16px; 
-    box-shadow: 0 8px 28px rgba(8,20,40,0.12); 
-    border: 1px solid rgba(255,255,255,0.6);
-  }
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
-  /* ✨ Light-Yellow Scrolling Notification Bar */
-  .marquee { 
-    white-space: nowrap; 
-    overflow:hidden; 
-    background: #fff8d6 !important; 
-    border-radius: 8px;
-  }
-
-  .marquee p { 
-    display: inline-block; 
-    padding-left:100%; 
-    animation: marquee 18s linear infinite; 
-    color:#7a5a00; 
-    font-weight:600;
-  }
-
-  @keyframes marquee { 
-    0% { transform: translateX(0%);} 
-    100% { transform: translateX(-100%);} 
-  }
-
-  .hidden { display:none !important; }
-</style>
-
-</head>
-<body class="min-h-screen p-6">
-
-<!-- Top marquee area -->
-<div id="notification-bar" class="glass p-3 mb-4">
-  <div class="flex items-center justify-between">
-    <div class="font-semibold text-slate-700">Winter Assignment Portal — Zone Wagoora</div>
-    <div class="text-sm text-gray-600">v12</div>
-  </div>
-
-  <!-- ✨ Updated marquee background -->
-  <div class="mt-2 h-8 marquee p-2 flex items-center">
-    <p id="notification-marquee">Welcome to Winter Assignment Portal</p>
-  </div>
-</div>
-
-<!-- Main layout -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-
-  <!-- Left column: Auth / profile / nav -->
-  <div class="col-span-1 glass p-4">
-    <div id="auth-card">
-      <h3 class="text-lg font-semibold mb-2">Login</h3>
-
-      <!-- Error message -->
-      <div id="error-message" class="text-sm text-red-600 mb-2"></div>
-
-      <!-- LOGIN FORM (FIXED) -->
-      <form id="login-form" class="space-y-2">
-
-        <label class="block text-sm">Login as</label>
-        <select id="role-select" class="p-2 border rounded w-full">
-          <option value="">-- Select Role --</option>
-          <option value="Admin">Admin</option>
-          <option value="Teacher">Teacher</option>
-          <option value="Student">Student</option>
-        </select>
-
-        <input id="username-input" placeholder="Username" required class="w-full border p-2 rounded" />
-        <input id="pin-input" placeholder="4-6 digit PIN" type="password" required class="w-full border p-2 rounded" />
-
-        <div class="flex gap-2">
-          <!-- FIXED LOGIN BUTTON -->
-          <button id="login-button" type="button"
-                  class="bg-blue-600 text-white px-3 py-2 rounded">
-            Login
-          </button>
-
-          <button id="show-signup-btn" type="button"
-                  class="bg-green-600 text-white px-3 py-2 rounded">
-            Sign Up
-          </button>
-
-          <button id="logout-btn" type="button"
-                  class="ml-auto text-sm text-gray-600 hidden">
-            Logout
-          </button>
-        </div>
-
-        <div id="login-error-message" class="text-sm text-red-600"></div>
-
-      </form>
-    </div>
-
-    <!-- SIGNUP FORM -->
-    <div id="user-signup-container" class="mt-4 hidden">
-      <h4 class="font-semibold">Sign up</h4>
-
-      <form id="user-signup-form" class="space-y-2">
-
-        <label class="text-sm">Role</label>
-        <select id="user-signup-role"
-                class="p-2 border rounded w-full bg-gradient-to-r from-yellow-50 to-blue-50">
-          <option value="">-- Select Role --</option>
-          <option value="Teacher">Teacher</option>
-          <option value="Student">Student</option>
-        </select>
-
-        <input id="user-signup-username"
-               placeholder="Username"
-               class="w-full border p-2 rounded bg-gradient-to-r from-blue-50 to-white" />
-
-        <input id="user-signup-pin"
-               placeholder="4-6 digit PIN"
-               class="w-full border p-2 rounded bg-gradient-to-r from-yellow-50 to-white" />
-
-        <div id="signup-class-field" class="hidden">
-          <label class="text-sm">Class</label>
-          <select id="user-signup-class"
-                  class="w-full border p-2 rounded bg-gradient-to-r from-green-50 to-white"></select>
-        </div>
-
-        <label class="text-sm">School</label>
-        <select id="user-signup-school"
-                class="w-full border p-2 rounded bg-gradient-to-r from-purple-50 to-white"></select>
-
-        <div class="flex gap-2">
-          <button type="submit" class="bg-indigo-600 text-white px-3 py-2 rounded">
-            Submit Signup
-          </button>
-
-          <button id="show-login-btn" type="button"
-                  class="px-3 py-2 rounded border">
-            Back
-          </button>
-        </div>
-
-        <div id="signup-error-message" class="text-sm text-red-600"></div>
-
-      </form>
-    </div>
-
-  </div> <!-- end column -->
-
-</div> <!-- end grid -->
-
-<!-- Robust script to populate classes & schools and toggle class-field -->
-<script>
-  (function () {
-    const CLASSES = ["1st","2nd","3rd","4th","5th","6th","7th","8th"];
-    // If you have a schools array elsewhere, keep it; otherwise this default 80 list will be used:
-    const DEFAULT_SCHOOLS = Array.from({length:80}, (_,i) => `School ${i+1}`);
-
-    function populateSignupClassDropdown() {
-      const classEl = document.getElementById('user-signup-class');
-      if (!classEl) return;
-      classEl.innerHTML = ''; // clear
-      // Add placeholder
-      const ph = document.createElement('option'); ph.value=''; ph.textContent='-- Select Class --';
-      classEl.appendChild(ph);
-      for (const c of CLASSES) {
-        const o = document.createElement('option');
-        o.value = c;
-        o.textContent = c;
-        classEl.appendChild(o);
-      }
-    }
-
-    function populateSignupSchoolDropdown() {
-      const schoolEl = document.getElementById('user-signup-school');
-      if (!schoolEl) return;
-      // If the page already populated schools elsewhere (e.g. SCHOOLS global), prefer that
-      let schools = window.SCHOOLS && Array.isArray(window.SCHOOLS) && window.SCHOOLS.length ? window.SCHOOLS : DEFAULT_SCHOOLS;
-      schoolEl.innerHTML = '';
-      const ph = document.createElement('option'); ph.value=''; ph.textContent='-- Select School --';
-      schoolEl.appendChild(ph);
-      for (const s of schools) {
-        const o = document.createElement('option');
-        o.value = s;
-        o.textContent = s;
-        schoolEl.appendChild(o);
-      }
-    }
-
-    function setupSignupRoleToggle() {
-      const roleEl = document.getElementById('user-signup-role');
-      const signupClassField = document.getElementById('signup-class-field');
-      if (!roleEl || !signupClassField) return;
-
-      roleEl.addEventListener('change', () => {
-        if (roleEl.value === 'Student') {
-          signupClassField.classList.remove('hidden');
-          // populate on-demand to guarantee it's filled even if something cleared it earlier
-          populateSignupClassDropdown();
-        } else {
-          signupClassField.classList.add('hidden');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #d1d5db;
         }
-      });
-    }
 
-    function setupShowSignupButtons() {
-      // keep existing UI toggles working: "show-signup-btn" shows form; "show-login-btn" hides it
-      const showSignupBtn = document.getElementById('show-signup-btn');
-      const signupContainer = document.getElementById('user-signup-container');
-      const showLoginBtn = document.getElementById('show-login-btn');
+        /* Glassmorphism portal card */
+        .portal-card {
+            background-image: linear-gradient(135deg, rgba(253, 224, 71, 0.2), rgba(96, 165, 250, 0.2));
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
 
-      if (showSignupBtn && signupContainer) {
-        showSignupBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          signupContainer.classList.remove('hidden');
-        });
-      }
-      if (showLoginBtn && signupContainer) {
-        showLoginBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          signupContainer.classList.add('hidden');
-        });
-      }
-    }
+        /* Snow animation container */
+        .snow-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 10;
+        }
 
-    // Ensure code runs after DOM ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        populateSignupClassDropdown();
-        populateSignupSchoolDropdown();
-        setupSignupRoleToggle();
-        setupShowSignupButtons();
-      });
-    } else {
-      populateSignupClassDropdown();
-      populateSignupSchoolDropdown();
-      setupSignupRoleToggle();
-      setupShowSignupButtons();
-    }
-  })();
-</script>
+        .snowflake {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: fall linear infinite;
+        }
 
-      <!-- Quick info & leaderboard links -->
-      <div id="profile-card" class="mt-4 hidden">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-full bg-blue-200 flex items-center justify-center text-white font-bold" id="avatar">A</div>
-          <div>
-            <div id="welcome-message" class="font-semibold"></div>
-            <div id="profile-role" class="text-sm text-gray-600"></div>
-          </div>
+        @keyframes fall {
+            0% { transform: translateY(-10vh) translateX(0); opacity: 0.8; }
+            100% { transform: translateY(100vh) translateX(20px); opacity: 0.2; }
+        }
+
+        /* Hover effect for portal buttons */
+        .portal-btn {
+            transition: all 0.3s ease;
+            transform: scale(1);
+        }
+        .portal-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Leaderboard colors */
+        .rank-1 { background-color: #FFD700; color: #1f2937; }
+        .rank-2 { background-color: #C0C0C0; color: #1f2937; }
+        .rank-3 { background-color: #CD7F32; color: #1f2937; }
+        .rank-default { background-color: #374151; color: #f3f4f6; }
+
+        /* Scrolling ticker */
+        .ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            background-color: #fcd34d;
+            color: #1f2937;
+        }
+        .ticker {
+            display: inline-block;
+            white-space: nowrap;
+            padding-left: 100%;
+            animation: ticker 15s linear infinite;
+        }
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+    <!-- ❄ Snow Animation Layer -->
+    <div class="snow-container" id="snow-container"></div>
+
+    <!-- 🔔 Notification Ticker -->
+    <div class="ticker-wrap w-full py-2 z-20">
+        <div class="ticker" id="notification-ticker">
+            Winter Vacation Assignment Released Today &nbsp;&nbsp; | &nbsp;&nbsp;
+            New Online Quiz Available &nbsp;&nbsp; | &nbsp;&nbsp;
+            Check the Leaderboard for Ranks!
         </div>
-
-        <div class="mt-3 space-y-2">
-          <button id="nav-assignments" class="w-full text-left px-3 py-2 border rounded">Assignments / MCQs</button>
-          <button id="nav-user-management" class="w-full text-left px-3 py-2 border rounded hidden">User Management (Admin)</button>
-          <button id="nav-add-mcqs" class="w-full text-left px-3 py-2 border rounded hidden">Add MCQs (Teacher)</button>
-          <button id="nav-leaderboard" class="w-full text-left px-3 py-2 border rounded">Leaderboards</button>
-          <button id="nav-location" class="w-full text-left px-3 py-2 border rounded hidden">Location Controls</button>
-        </div>
-
-        <div class="mt-3">
-          <button id="open-profile-logout" class="w-full bg-red-500 text-white px-3 py-2 rounded hidden">Logout</button>
-        </div>
-      </div>
-
     </div>
 
-    <!-- Middle columns: Main content -->
-    <div class="col-span-1 md:col-span-2 glass p-4">
-      <!-- Assignments / MCQs / dashboards will render here -->
-      <div id="main-content">
-        <!-- Public landing -->
-        <div id="landing-view" class="">
-          <h2 class="text-xl font-semibold">Welcome to Winter Assignment Portal — Zone Wagoora</h2>
-          <p class="mt-2 text-sm text-gray-600">Login to access Admin, Teacher, or Student dashboards.</p>
-        </div>
+    <!-- 🏫 Portal Header -->
+    <header class="p-6 text-center z-20">
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-2 text-yellow-300">
+            Winter Assignment Portal
+        </h1>
+        <h2 class="text-xl sm:text-2xl font-light text-blue-300">
+            Government Primary School Pethgam Wagoora
+        </h2>
+    </header>
 
-        <!-- Assignments / Teacher / Student view -->
-        <div id="assignments-view" class="hidden">
-          <!-- Teacher add MCQ form (shows for teacher/admin) -->
-          <div id="teacher-view" class="hidden mb-4">
-            <h3 class="font-semibold">Add MCQ</h3>
-            <form id="assignment-form" class="space-y-2">
-              <div class="grid grid-cols-2 gap-2">
-                <select id="assignment-class-select" class="p-2 border rounded"></select>
-                <select id="assignment-subject-select" class="p-2 border rounded"></select>
-              </div>
-              <textarea id="mcq-question" placeholder="Write question here" class="w-full border p-2 rounded"></textarea>
+    <!-- 🧊 Portal Card -->
+    <main class="flex-grow flex items-start justify-center p-4 md:p-8 z-20">
+        <div id="app-container" class="w-full max-w-4xl portal-card p-4 sm:p-8">
+            <div id="content-view">
+                <div class="flex flex-col items-center justify-center p-8 text-center">
+                    <svg class="animate-spin h-8 w-8 text-blue-400 mb-4"
+                         viewBox="0 0 24 24" fill="none">
+                        <path d="M12 4.75V6.25M17.127 6.873l-1.061 1.061M19.25 12h-1.5M17.127 17.127l-1.061-1.061M12 17.75v1.5M7.934 16.066l-1.061 1.061M6.25 12h-1.5M7.934 7.934l-1.061-1.061"
+                        stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
 
-              <div class="grid grid-cols-2 gap-2">
-                <input id="opt1" placeholder="Option 1" class="border p-2 rounded" />
-                <input id="opt2" placeholder="Option 2" class="border p-2 rounded" />
-                <input id="opt3" placeholder="Option 3" class="border p-2 rounded" />
-                <input id="opt4" placeholder="Option 4" class="border p-2 rounded" />
-              </div>
-
-              <label class="text-sm">Correct Option</label>
-              <select id="correct-opt" class="p-2 border rounded w-full">
-                <option value="">-- Select Correct Option --</option>
-                <option value="1">Option 1</option>
-                <option value="2">Option 2</option>
-                <option value="3">Option 3</option>
-                <option value="4">Option 4</option>
-              </select>
-
-              <div class="flex gap-2">
-                <button id="save-mcq-btn" class="bg-green-600 text-white px-3 py-2 rounded">Save MCQ</button>
-                <div id="mcq-status" class="text-sm text-gray-600 pt-2"></div>
-              </div>
-
-              <div id="teacher-mcq-list" class="mt-3"></div>
-            </form>
-          </div>
-
-          <!-- Student view: Quiz player -->
-          <div id="student-view" class="hidden mb-4">
-            <h3 class="font-semibold">Take MCQs</h3>
-            <div class="grid grid-cols-2 gap-2 mb-2">
-              <select id="student-class-select" class="p-2 border rounded"></select>
-              <select id="student-subject-select" class="p-2 border rounded"></select>
-            </div>
-            <button id="start-quiz-btn" class="bg-blue-600 text-white px-3 py-2 rounded">Start Quiz</button>
-
-            <div id="quiz-area" class="mt-4 hidden">
-              <div id="question-card" class="p-4 border rounded">
-                <div id="question-text" class="font-semibold mb-2"></div>
-                <div id="question-options" class="grid gap-2"></div>
-                <div id="quiz-feedback" class="mt-2 font-medium"></div>
-                <div class="mt-3">
-                  <button id="next-question-btn" class="bg-indigo-600 text-white px-3 py-2 rounded hidden">Next</button>
+                    <p class="text-lg font-semibold text-blue-300">
+                        Initializing Portal and Connecting to Database...
+                    </p>
                 </div>
-              </div>
             </div>
-
-            <div class="mt-3 text-sm text-gray-700">
-              <div>Coins: <span id="student-coins">0</span></div>
-              <div>Trophy: <span id="student-trophy">—</span></div>
-            </div>
-          </div>
         </div>
+    </main>
 
-        <!-- Admin User Management -->
-        <div id="admin-management-view" class="hidden">
-          <h3 class="font-semibold">Admin — User Management</h3>
+    <!-- 👣 Footer -->
+    <footer class="text-center text-xs p-4 border-t border-gray-700/50 mt-8 z-20">
+        <p class="text-gray-400 mb-1">Designed & Developed by Mohammad Ashraf Rather</p>
+        <p class="text-gray-500">Government Primary School Pethgam Wagoora | Winter Assignment Portal 2025</p>
+        <p class="text-gray-600 mt-2">
+            User ID: <span id="footer-user-id">N/A</span> |
+            App ID: <span id="footer-app-id">N/A</span>
+        </p>
+    </footer>
 
-          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Pending approvals -->
-            <div class="p-3 border rounded">
-              <h4 class="font-semibold">Pending Signups</h4>
-              <div id="pending-list" class="mt-2"></div>
-            </div>
+    <!-- ❄ Auto Snowflake Generator Placeholder -->
+    <script>
+        const snowContainer = document.getElementById('snow-container');
 
-            <!-- School editor & summary -->
-            <div class="p-3 border rounded">
-              <h4 class="font-semibold">Schools (Edit)</h4>
-              <div id="schools-list" class="mt-2 space-y-2"></div>
-              <h4 class="mt-4 font-semibold">Summary</h4>
-              <div id="admin-summary" class="text-sm text-gray-600 mt-2"></div>
-            </div>
-          </div>
-        </div>
+        // You can activate this when ready
+        for (let i = 0; i < 40; i++) {
+            let snow = document.createElement('div');
+            snow.className = 'snowflake';
+            snow.style.left = Math.random() * 100 + '%';
+            snow.style.animationDuration = (5 + Math.random() * 10) + 's';
+            snow.style.opacity = Math.random();
+            snowContainer.appendChild(snow);
+        }
+    </script>
 
-        <!-- Leaderboards -->
-        <div id="leaderboard-view" class="hidden">
-          <h3 class="font-semibold">Leaderboards</h3>
-          <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div class="p-3 border rounded">
-              <h4 class="font-semibold">Class-wise</h4>
-              <select id="leaderboard-class-select" class="p-2 border rounded w-full mt-2"></select>
-              <div id="class-leaderboard" class="mt-2"></div>
-            </div>
+</body>
+</html>
 
-            <div class="p-3 border rounded">
-              <h4 class="font-semibold">Subject-wise</h4>
-              <select id="leaderboard-class-select-2" class="p-2 border rounded w-full mt-2"></select>
-              <select id="leaderboard-subject-select" class="p-2 border rounded w-full mt-2"></select>
-              <div id="subject-leaderboard" class="mt-2"></div>
-            </div>
 
-            <div class="p-3 border rounded">
-              <h4 class="font-semibold">Overall</h4>
-              <div id="overall-leaderboard" class="mt-2"></div>
-            </div>
-          </div>
-        </div>
 
-      </div>
-    </div>
 
-    <!-- Right column: admin quick actions, notifications publish -->
-    <div class="col-span-1 glass p-4">
-      <div id="admin-controls" class="hidden">
-        <h4 class="font-semibold">Admin Controls</h4>
 
-        <div class="mt-2">
-          <label class="text-sm">Publish Notification</label>
-          <textarea id="admin-notification-text" class="w-full border p-2 rounded" rows="3"></textarea>
-          <button id="publish-notification-btn" class="mt-2 bg-orange-500 text-white px-3 py-2 rounded">Publish</button>
-        </div>
 
-        <div class="mt-4">
-          <h5 class="font-semibold">Quick Stats</h5>
-          <div id="admin-stats" class="text-sm text-gray-700 mt-2"></div>
-        </div>
-      </div>
 
-      <!-- Teacher summary -->
-      <div id="teacher-summary" class="hidden">
-        <h4 class="font-semibold">Teacher Summary</h4>
-        <div id="teacher-stats" class="text-sm mt-2"></div>
-      </div>
 
-      <!-- Student quick info -->
-      <div id="student-summary" class="hidden">
-        <h4 class="font-semibold">Student</h4>
-        <div id="student-info" class="mt-2 text-sm"></div>
-      </div>
-    </div>
-  </div>
 
-  <!-- ========================= Firebase + App Script (module) ========================= -->
-<script type="module">
-/* Firebase + App logic (modular v10+) */
-import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getAuth, signInAnonymously, onAuthStateChanged, signOut
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc,
-  deleteDoc, serverTimestamp, query, where, onSnapshot, orderBy, limit, increment
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
-  authDomain: "wap-ps-pethgam.firebaseapp.com",
-  databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
-  projectId: "wap-ps-pethgam",
-  storageBucket: "wap-ps-pethgam.firebasestorage.app",
-  messagingSenderId: "430925411362",
-  appId: "1:430925411362:web:22857dee585d02fc54467b"
-};
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// Global state
-let allUsers = {}; // cache
-let currentUser = null; // {username, role, id, school, class, status}
-const appId = 'default-app-id'; // you can override __app_id if available
-const USERS_PATH = `artifacts/${appId}/public/data/users`;
-const NOTIF_PATH = `artifacts/${appId}/public/data/notifications`;
-const MCQ_BASE = `artifacts/${appId}/public/data/mcqs`;
-const COINS_PATH = `artifacts/${appId}/public/data/coins`;
-
-// Pre-built school list (80)
-const SCHOOLS = Array.from({length:80}, (_,i) => `School ${i+1}`);
-
-// Application constants
-const AVAILABLE_CLASSES = ["1st","2nd","3rd","4th","5th","6th","7th","8th"];
-const AVAILABLE_SUBJECTS = ["Math","English","EVS","Urdu","Kashmiri","SST"];
-const MAX_TEACHERS = 10;
-const MAX_STUDENTS = 560;
-const MAX_PER_CLASS = 70;
-const TEACHER_DAILY_LIMIT = 20;
-const Trophies = { BRONZE:2500, SILVER:5000, GOLD:7500 };
-
-// Default admin record (not necessarily in Firestore at start; treated specially)
-const DEFAULT_ADMIN_KEY = "admin_pethgam";
-
-// DOM refs (assigned on DOMContentLoaded)
-let refs = {};
-
-// Utility helpers
-const safeGet = id => document.getElementById(id);
-const uid = () => (Math.random().toString(36).slice(2,10)); // local id for generated entries if needed
-const lower = s => (s||'').toLowerCase();
-
-// Firestore collection references helper
-const colRef = (path) => collection(db, path);
-
-// -------------------- AUTH & BOOT --------------------
-async function initApp() {
-  // wire DOM refs
-  refs = {
-    errorEl: safeGet('error-message'),
-    loginForm: safeGet('login-form'),
-    roleSelect: safeGet('role-select'),
-    usernameInput: safeGet('username-input'),
-    pinInput: safeGet('pin-input'),
-    signupBtn: safeGet('show-signup-btn'),
-    signupContainer: safeGet('user-signup-container'),
-    signupForm: safeGet('user-signup-form'),
-    signupRole: safeGet('user-signup-role'),
-    signupUser: safeGet('user-signup-username'),
-    signupPin: safeGet('user-signup-pin'),
-    signupClassField: safeGet('signup-class-field'),
-    signupClass: safeGet('user-signup-class'),
-    signupSchool: safeGet('user-signup-school'),
-    signupError: safeGet('signup-error-message'),
-    logoutBtn: safeGet('logout-btn'),
-    welcomeMessage: safeGet('welcome-message'),
-    avatar: safeGet('avatar'),
-    profileCard: safeGet('profile-card'),
-    authCard: safeGet('auth-card'),
-    navUserMgmt: safeGet('nav-user-management'),
-    navAddMcqs: safeGet('nav-add-mcqs'),
-    navAssignments: safeGet('nav-assignments'),
-    navLeaderboard: safeGet('nav-leaderboard'),
-    navLocation: safeGet('nav-location'),
-    mainContent: safeGet('main-content'),
-    landingView: safeGet('landing-view'),
-    assignmentsView: safeGet('assignments-view'),
-    teacherView: safeGet('teacher-view'),
-    studentView: safeGet('student-view'),
-    adminManagementView: safeGet('admin-management-view'),
-    leaderboardView: safeGet('leaderboard-view'),
-    teacherSummary: safeGet('teacher-summary'),
-    studentSummary: safeGet('student-summary'),
-    adminControls: safeGet('admin-controls'),
-    notificationMarquee: safeGet('notification-marquee'),
-    publishNotifBtn: safeGet('publish-notification-btn'),
-    adminNotifText: safeGet('admin-notification-text'),
-    adminStats: safeGet('admin-stats'),
-    mcqForm: safeGet('assignment-form'),
-    classSelect: safeGet('assignment-class-select'),
-    subjectSelect: safeGet('assignment-subject-select'),
-    saveMcqBtn: safeGet('save-mcq-btn'),
-    teacherMcqList: safeGet('teacher-mcq-list'),
-    studentClassSelect: safeGet('student-class-select'),
-    studentSubjectSelect: safeGet('student-subject-select'),
-    startQuizBtn: safeGet('start-quiz-btn'),
-    quizArea: safeGet('quiz-area'),
-    questionText: safeGet('question-text'),
-    questionOptions: safeGet('question-options'),
-    quizFeedback: safeGet('quiz-feedback'),
-    nextQuestionBtn: safeGet('next-question-btn'),
-    studentCoinsEl: safeGet('student-coins'),
-    studentTrophyEl: safeGet('student-trophy'),
-    pendingList: safeGet('pending-list'),
-    schoolsList: safeGet('schools-list'),
-    adminSummary: safeGet('admin-summary'),
-    leaderboardClassSelect: safeGet('leaderboard-class-select'),
-    leaderboardClassSelect2: safeGet('leaderboard-class-select-2'),
-    leaderboardSubjectSelect: safeGet('leaderboard-subject-select'),
-    classLeaderboard: safeGet('class-leaderboard'),
-    subjectLeaderboard: safeGet('subject-leaderboard'),
-    overallLeaderboard: safeGet('overall-leaderboard')
-  };
-
-  // populate selects
-  populateInitialOptions();
-
-  // auth listener (anonymous) + start
-  onAuthStateChanged(auth, async (u) => {
-    // anonymous auth only used for reading/writing rules
-    try {
-      if (!auth.currentUser) await signInAnonymously(auth);
-    } catch(e){ console.warn("Auth anon failed:", e); }
-  });
-
-  // attach UI handlers
-  attachUIHandlers();
-
-  // load caches and start live listeners (notifications + users)
-  await loadUserCache();
-  startNotificationsListener();
-  startUsersListener();
-
-  // Show landing
-  showView('landing');
-}
-
-// Populate class, subject and school selects
-function populateInitialOptions(){
-  // classes
-  const cs = AVAILABLE_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
-  if (refs.classSelect) refs.classSelect.innerHTML = cs;
-  if (refs.studentClassSelect) refs.studentClassSelect.innerHTML = cs;
-  if (refs.leaderboardClassSelect) refs.leaderboardClassSelect.innerHTML = '<option value="">-- Select Class --</option>' + cs;
-  if (refs.leaderboardClassSelect2) refs.leaderboardClassSelect2.innerHTML = '<option value="">-- Select Class --</option>' + cs;
-  // subjects
-  const ss = AVAILABLE_SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
-  if (refs.subjectSelect) refs.subjectSelect.innerHTML = ss;
-  if (refs.studentSubjectSelect) refs.studentSubjectSelect.innerHTML = ss;
-  if (refs.leaderboardSubjectSelect) refs.leaderboardSubjectSelect.innerHTML = '<option value="">-- Select Subject --</option>' + ss;
-  // schools
-  const sh = SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join('');
-  if (refs.signupSchool) refs.signupSchool.innerHTML = sh;
-}
-
-// Attach UI event listeners
-function attachUIHandlers(){
-  // Login
-  refs.loginForm && refs.loginForm.addEventListener('submit', handleLogin);
-  refs.publishNotifBtn && refs.publishNotifBtn.addEventListener('click', publishNotification);
-
-  // Signup toggles
-  const showSignupBtn = safeGet('show-signup-btn'), showLoginBtn = safeGet('show-login-btn');
-  showSignupBtn && showSignupBtn.addEventListener('click', (e)=>{ e.preventDefault(); refs.signupContainer.classList.remove('hidden'); });
-  showLoginBtn && showLoginBtn.addEventListener('click', (e)=>{ e.preventDefault(); refs.signupContainer.classList.add('hidden'); });
-
-  // Signup form
-  refs.signupForm && refs.signupForm.addEventListener('submit', handleUserSignup);
-  refs.signupRole && refs.signupRole.addEventListener('change', ()=>{
-    if (refs.signupRole.value === 'Student') refs.signupClassField.classList.remove('hidden');
-    else refs.signupClassField.classList.add('hidden');
-  });
-
-  // Nav
-  refs.navAssignments && refs.navAssignments.addEventListener('click', ()=> showView('assignments'));
-  refs.navUserMgmt && refs.navUserMgmt.addEventListener('click', ()=> showView('admin-management'));
-  refs.navAddMcqs && refs.navAddMcqs.addEventListener('click', ()=> showView('assignments'));
-  refs.navLeaderboard && refs.navLeaderboard.addEventListener('click', ()=> showView('leaderboards'));
-  refs.logoutBtn && refs.logoutBtn.addEventListener('click', handleLogout);
-
-  // Teacher: save MCQ
-  refs.saveMcqBtn && refs.saveMcqBtn.addEventListener('click', saveMCQ);
-
-  // Student: start quiz
-  refs.startQuizBtn && refs.startQuizBtn.addEventListener('click', startQuiz);
-
-  // Leaderboard selects
-  refs.leaderboardClassSelect && refs.leaderboardClassSelect.addEventListener('change', loadClassLeaderboard);
-  refs.leaderboardClassSelect2 && refs.leaderboardClassSelect2.addEventListener('change', loadSubjectLeaderboardOptions);
-  refs.leaderboardSubjectSelect && refs.leaderboardSubjectSelect.addEventListener('change', loadSubjectLeaderboard);
-
-  // Pending listener refresh
-  // (no extra handlers)
-}
-
-// -------------------- USER / FIRESTORE OPERATIONS --------------------
-
-// Load all users into local cache (simple) and expose pending counts
-async function loadUserCache(){
-  try {
-    const q = query(colRef(USERS_PATH), orderBy('createdAt','desc'));
-    const snap = await getDocs(q);
-    allUsers = {};
-    snap.forEach(d => {
-      const data = d.data();
-      if (data && data.username) {
-        allUsers[ lower(data.username) ] = {...data, id: d.id};
-      }
-    });
-    updateAdminSummary();
-  } catch(err){
-    console.error("Load users failed:", err);
-  }
-}
-
-// Start real-time listener for users for live pending list
-function startUsersListener(){
-  try {
-    const q = query(colRef(USERS_PATH), orderBy('createdAt','desc'));
-    onSnapshot(q, snapshot => {
-      allUsers = {};
-      snapshot.forEach(d => {
-        const data = d.data();
-        if (data && data.username) allUsers[ lower(data.username) ] = {...data, id: d.id};
-      });
-      renderPendingApprovals();
-      updateAdminSummary();
-    });
-  } catch(e){ console.warn(e); }
-}
-
-// Notifications listener
-function startNotificationsListener(){
-  try {
-    const q = query(colRef(NOTIF_PATH), orderBy('createdAt','desc'), limit(10));
-    onSnapshot(q, snap => {
-      let text = '';
-      snap.forEach(d => {
-        const data = d.data();
-        if (data && data.message) text += `⚡ ${data.message} — `;
-      });
-      refs.notificationMarquee && (refs.notificationMarquee.textContent = text || 'Welcome to Winter Assignment Portal!');
-    });
-  } catch(e){ console.warn(e); }
-}
-
-// Publish notification (admin)
-async function publishNotification(){
-  if (!currentUser || currentUser.role !== 'Admin') { alert('Only admin can publish notifications'); return; }
-  const msg = refs.adminNotifText.value.trim();
-  if (!msg) { alert('Enter a message'); return; }
-  try {
-    await addDoc(colRef(NOTIF_PATH), { message: msg, createdBy: currentUser.username, createdAt: serverTimestamp() });
-    refs.adminNotifText.value = '';
-    alert('Notification published');
-  } catch (e) { console.error(e); alert('Publish failed'); }
+                                     
 }
 
 // -------------------- LOGIN / SIGNUP --------------------
