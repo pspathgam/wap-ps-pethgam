@@ -160,6 +160,325 @@
             snowContainer.appendChild(snow);
         }
     </script>
+    <script type="module">
+/* ------------------------------------------------------------
+   FIREBASE SDK IMPORTS
+------------------------------------------------------------- */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { 
+    getAuth, 
+    signInAnonymously, 
+    signInWithCustomToken, 
+    onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+import { 
+    getFirestore,
+    doc,
+    setDoc,
+    getDoc,
+    getDocs,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    onSnapshot,
+    collection,
+    query 
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+/* ------------------------------------------------------------
+   CONFIG & GLOBALS
+------------------------------------------------------------- */
+
+// App ID (Wix/WordPress or manual variable)
+const appId = typeof __app_id !== "undefined" ? __app_id : "gspw-portal-default-id";
+
+// Hardcoded fallback config
+const hardcodedConfig = {
+    apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
+    authDomain: "wap-ps-pethgam.firebaseapp.com",
+    databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
+    projectId: "wap-ps-pethgam",
+    storageBucket: "wap-ps-pethgam.firebasestorage.app",
+    messagingSenderId: "430925411362",
+    appId: "1:430925411362:web:22857dee585d02fc54467b"
+};
+
+let firebaseConfig = {};
+let app, db, auth;
+let currentUser = null;
+
+let assignments = [];
+let mcqs = [];
+let notifications = [];
+let users = [];
+let isPublicLoaded = false;
+
+document.getElementById("footer-app-id").textContent = appId;
+
+/* ------------------------------------------------------------
+   SAFE CONFIG PARSING
+------------------------------------------------------------- */
+try {
+    firebaseConfig = (typeof __firebase_config !== "undefined" && __firebase_config !== "")
+        ? JSON.parse(__firebase_config)
+        : hardcodedConfig;
+} catch (e) {
+    console.error("CONFIG PARSE ERROR:", e);
+    firebaseConfig = hardcodedConfig;
+}
+
+/* ------------------------------------------------------------
+   FIRESTORE PATH BUILDER (AVOIDS INVALID PATHS)
+------------------------------------------------------------- */
+function dataPath(colName) {
+    return `artifacts/${appId}/public/data/${colName}`;
+}
+
+/* ------------------------------------------------------------
+   MANDATORY TEST USERS
+------------------------------------------------------------- */
+const mandatoryTestUsers = [
+    { role: "Admin", username: "admin@school.com", pin: "1234", status: "Approved", class: null, school: "G.P.S Pethgam Wagoora" },
+    { role: "Teacher", username: "teacher@school.com", pin: "5678", status: "Approved", class: 5, school: "G.P.S Pethgam Wagoora" },
+    { role: "Student", username: "student@school.com", pin: "0000", status: "Approved", class: 5, school: "G.P.S Pethgam Wagoora" }
+];
+
+/* ------------------------------------------------------------
+   INITIALIZE FIREBASE
+------------------------------------------------------------- */
+async function initializeAppPortal() {
+    try {
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+
+        console.log("Firebase Initialized.");
+
+        setupPublicListeners();
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                signInAnonymously(auth).catch(err => {
+                    console.error("Anonymous Login Failed", err);
+                });
+            } else {
+                findUserProfile(user.uid);
+                document.getElementById("footer-user-id").textContent = user.uid;
+            }
+        });
+
+    } catch (err) {
+        console.error("INIT ERROR:", err);
+        document.getElementById("content-view").innerHTML = `
+            <h2 class="text-center text-red-400">Initialization Failed</h2>
+            <p class="text-center text-gray-400">${err.message}</p>
+        `;
+    }
+}
+
+initializeAppPortal();
+
+/* ------------------------------------------------------------
+   PUBLIC LISTENERS (Assignments, MCQs, Notifications, Users)
+------------------------------------------------------------- */
+function setupPublicListeners() {
+    if (isPublicLoaded) return;
+
+    onSnapshot(collection(db, dataPath("assignments")), snap => {
+        assignments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    });
+
+    onSnapshot(collection(db, dataPath("mcqs")), snap => {
+        mcqs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    });
+
+    onSnapshot(collection(db, dataPath("notifications")), snap => {
+        notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        updateNotificationTicker();
+    });
+
+    onSnapshot(collection(db, dataPath("users")), snap => {
+        users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        ensureMandatoryUsers();
+    });
+
+    isPublicLoaded = true;
+}
+
+/* ------------------------------------------------------------
+   ENSURE TEST USERS EXIST
+------------------------------------------------------------- */
+async function ensureMandatoryUsers() {
+    for (const u of mandatoryTestUsers) {
+        const uid = u.username.replace(/[^a-zA-Z0-9]/g, "_");
+        const ref = doc(db, dataPath("users"), uid);
+        if (!(await getDoc(ref)).exists()) {
+            await setDoc(ref, { ...u, uid });
+            console.log("Seed user created:", u.username);
+        }
+    }
+}
+
+/* ------------------------------------------------------------
+   FIND USER & REDIRECT
+------------------------------------------------------------- */
+function findUserProfile(uid) {
+    const ref = doc(db, dataPath("users"), uid);
+
+    onSnapshot(ref, snap => {
+        if (snap.exists()) {
+            currentUser = snap.data();
+            redirectToDashboard(currentUser.role);
+        } else {
+            renderView("homepage");
+        }
+    });
+}
+
+/* ------------------------------------------------------------
+   REDIRECT
+------------------------------------------------------------- */
+function redirectToDashboard(role) {
+    if (role === "Admin") renderView("admin");
+    else if (role === "Teacher") renderView("teacher");
+    else if (role === "Student") renderView("student");
+    else renderView("homepage");
+}
+
+/* ------------------------------------------------------------
+   RENDER FUNCTIONS (Login/Signup Included)
+------------------------------------------------------------- */
+function renderView(name) {
+    const box = document.getElementById("content-view");
+
+    if (name === "homepage") {
+        box.innerHTML = renderHomepage();
+    }
+    if (name === "login") {
+        box.innerHTML = renderLogin();
+        setupLoginEvents();
+    }
+    if (name === "signup") {
+        box.innerHTML = renderSignup();
+        setupSignupEvents();
+    }
+    if (name === "admin") box.innerHTML = `<h2>Admin Dashboard</h2>`;
+    if (name === "teacher") box.innerHTML = `<h2>Teacher Dashboard</h2>`;
+    if (name === "student") box.innerHTML = `<h2>Student Dashboard</h2>`;
+}
+
+function renderHomepage() {
+    return `
+        <div class="text-center p-4">
+            <h2 class="text-2xl font-bold text-yellow-400">Welcome!</h2>
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button onclick="renderView('login')" class="bg-blue-500 p-3 rounded-xl text-white">Login</button>
+                <button onclick="renderView('signup')" class="bg-green-600 p-3 rounded-xl text-white">New Signup</button>
+                <button onclick="renderView('leaderboard')" class="bg-yellow-600 p-3 rounded-xl text-white">Leaderboard</button>
+            </div>
+        </div>
+    `;
+}
+
+/* ------------------------------------------------------------
+   LOGIN FORM + EVENTS
+------------------------------------------------------------- */
+function renderLogin() {
+    return `
+        <div class="p-6">
+            <h2 class="text-xl font-bold text-center mb-4">Login</h2>
+
+            <input id="login-username" placeholder="Username" class="input" />
+            <input id="login-pin" type="password" placeholder="PIN" class="input mt-3" />
+
+            <button id="login-btn" class="btn-primary mt-4 w-full">Login</button>
+        </div>
+    `;
+}
+
+function setupLoginEvents() {
+    document.getElementById("login-btn").onclick = async () => {
+        const username = document.getElementById("login-username").value.trim();
+        const pin = document.getElementById("login-pin").value.trim();
+
+        const uid = username.replace(/[^a-zA-Z0-9]/g, "_");
+        const ref = doc(db, dataPath("users"), uid);
+
+        const snap = await getDoc(ref);
+
+        if (!snap.exists()) return showToast("User not found");
+
+        const data = snap.data();
+
+        if (data.pin === pin) {
+            showToast("Login successful!");
+            redirectToDashboard(data.role);
+        } else {
+            showToast("Incorrect PIN");
+        }
+    };
+}
+
+/* ------------------------------------------------------------
+   SIGN-UP FORM + EVENTS
+------------------------------------------------------------- */
+function renderSignup() {
+    return `
+        <div class="p-6">
+            <h2 class="text-xl font-bold text-center mb-4">New Signup</h2>
+
+            <input id="su-username" placeholder="Email" class="input" />
+            <input id="su-pin" placeholder="Create PIN" class="input mt-3" />
+
+            <select id="su-role" class="input mt-3">
+                <option value="Student">Student</option>
+                <option value="Teacher">Teacher</option>
+            </select>
+
+            <input id="su-class" placeholder="Class (for students)" class="input mt-3" />
+
+            <button id="signup-btn" class="btn-primary mt-4 w-full">Submit</button>
+        </div>
+    `;
+}
+
+function setupSignupEvents() {
+    document.getElementById("signup-btn").onclick = async () => {
+        const username = suUsername.value.trim();
+        const pin = suPin.value.trim();
+        const role = suRole.value;
+        const sclass = suClass.value;
+
+        if (!username || !pin) return showToast("Fill all fields");
+
+        const uid = username.replace(/[^a-zA-Z0-9]/g, "_");
+
+        const ref = doc(db, dataPath("users"), uid);
+
+        await setDoc(ref, {
+            uid,
+            username,
+            pin,
+            role,
+            class: role === "Student" ? sclass : null,
+            status: "Pending",
+            timestamp: Date.now()
+        });
+
+        showToast("Signup submitted. Await approval.");
+        renderView("login");
+    };
+}
+
+/* ------------------------------------------------------------
+   MINI UI HELPERS
+------------------------------------------------------------- */
+function showToast(msg) {
+    alert(msg); // Replace with your fancy toast if needed
+}
+
+    </script>
 
 
 
