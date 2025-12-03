@@ -477,656 +477,279 @@ function setupSignupEvents() {
 function showToast(msg) {
     alert(msg); // Replace with your fancy toast if needed
 }
+<!-- 🔥 COMPLETE FIXED LOGIN + SIGNUP + ADMIN BLOCK -->
+<script type="module">
 
-    </script>
+/* -----------------------------------------
+   🚀 Firebase Collection Paths (Fixed)
+------------------------------------------ */
+const USERS_PATH = `artifacts/${appId}/public/users`;
+const NOTIFY_PATH = `artifacts/${appId}/public/notifications`;
 
+/* -----------------------------------------
+   🔵 RENDER LOGIN
+------------------------------------------ */
+function renderLogin() {
+    return `
+        <div class="max-w-md mx-auto p-6 portal-card">
+            <h2 class="text-3xl font-extrabold text-blue-300 mb-6 text-center">Portal Login</h2>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-300 mb-1">Select Role</label>
+                    <select id="login-role" required class="w-full p-3 rounded-xl bg-gray-700/50 border border-gray-600 text-white">
+                        <option disabled selected>Choose role...</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Teacher">Teacher</option>
+                        <option value="Student">Student</option>
+                    </select>
+                </div>
 
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-300 mb-1">Username (Email/ID)</label>
+                    <input id="login-username" required class="w-full p-3 rounded-xl bg-gray-700/50 border border-gray-600 text-white">
+                </div>
 
+                <div class="mb-6">
+                    <label class="block text-sm text-gray-300 mb-1">PIN</label>
+                    <input type="password" id="login-pin" required class="w-full p-3 rounded-xl bg-gray-700/50 border border-gray-600 text-white">
+                </div>
 
+                <p id="login-error" class="text-red-400 text-sm mb-4 hidden"></p>
 
+                <button class="portal-btn w-full bg-yellow-500 hover:bg-yellow-600 py-3 rounded-xl">
+                    Log In
+                </button>
+            </form>
 
-
-
-
-
-
-                                     
+            <p class="text-center text-sm mt-4 text-gray-400">
+                Don't have an account?
+                <button onclick="renderView('signup')" class="text-blue-400 ml-1">Sign Up</button>
+            </p>
+        </div>
+    `;
 }
 
-// -------------------- LOGIN / SIGNUP --------------------
+/* -----------------------------------------
+   🔥 LOGIN EVENTS (FULLY FIXED)
+------------------------------------------ */
+function setupLoginEvents() {
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-async function handleLogin(e){
-  e && e.preventDefault();
-  const role = refs.roleSelect.value;
-  const usernameRaw = refs.usernameInput.value.trim();
-  const pin = refs.pinInput.value.trim();
-  if (!role || !usernameRaw || !pin) { refs.errorEl.textContent = 'Please fill all login fields.'; return; }
-  refs.errorEl.textContent = '';
+        const role = login-role.value;
+        const username = login-username.value.trim();
+        const pin = login-pin.value.trim();
+        const errorEl = login-error;
+        errorEl.classList.add("hidden");
 
-  // refresh user cache
-  await loadUserCache();
+        const uid = username.replace(/[^a-zA-Z0-9]/g, "_");
+        const userRef = doc(db, USERS_PATH, uid);
 
-  const key = lower(usernameRaw);
-  // Special-case default admin
-  if (key === DEFAULT_ADMIN_KEY && pin === '0000' && role === 'Admin') {
-    // login as default admin without Firestore record
-    currentUser = { username: 'Admin_Pethgam', role: 'Admin', id: 'builtin-admin', school: 'PS Pethgam Wagoora', status: 'Approved' };
-    onUserLoggedIn();
-    return;
-  }
+        try {
+            let snap = await getDoc(userRef);
 
-  const user = allUsers[key];
-  if (!user) { refs.errorEl.textContent = 'Login failed: user not found'; return; }
-  if (String(user.pin) !== String(pin)) { refs.errorEl.textContent = 'Login failed: invalid PIN'; return; }
-  if (String(user.role) !== role) { refs.errorEl.textContent = 'Login failed: selected role does not match'; return; }
-  if (String(user.status) !== 'Approved') { refs.errorEl.textContent = 'Your account is pending approval.'; return; }
+            // Self-healing test users
+            if (!snap.exists()) {
+                const isSeed = mandatoryTestUsers.some(u => u.username === username);
+                if (isSeed) {
+                    await ensureMandatoryTestUsersExist();
+                    snap = await getDoc(userRef);
+                }
+            }
 
-  currentUser = {...user, id: user.id};
-  onUserLoggedIn();
-}
+            if (!snap.exists()) {
+                errorEl.textContent = "User not found.";
+                errorEl.classList.remove("hidden");
+                return;
+            }
 
-async function handleUserSignup(e){
-  e && e.preventDefault();
-  const role = refs.signupRole.value;
-  const raw = refs.signupUser.value.trim();
-  const pin = refs.signupPin.value.trim();
-  const school = refs.signupSchool.value;
-  const cls = refs.signupClass ? refs.signupClass.value : null;
+            const user = snap.data();
 
-  if (!role || !raw || !pin || !school || (role === 'Student' && !cls)) {
-    refs.signupError.textContent = 'Please fill all required fields'; return;
-  }
-  refs.signupError.textContent = '';
+            if (user.pin !== pin || user.role !== role) {
+                errorEl.textContent = "Invalid credentials.";
+                errorEl.classList.remove("hidden");
+                return;
+            }
 
-  // enforce limits
-  await loadUserCache();
-  const totalTeachers = Object.values(allUsers).filter(u=>u.role==='Teacher').length;
-  const totalStudents = Object.values(allUsers).filter(u=>u.role==='Student').length;
-  if (role === 'Teacher' && totalTeachers >= MAX_TEACHERS) { refs.signupError.textContent = 'Teacher registration limit reached.'; return; }
-  if (role === 'Student' && totalStudents >= MAX_STUDENTS) { refs.signupError.textContent = 'Student registration limit reached.'; return; }
-  if (role === 'Student') {
-    const classCount = Object.values(allUsers).filter(u=>u.role==='Student' && u.class===cls).length;
-    if (classCount >= MAX_PER_CLASS) { refs.signupError.textContent = `Class ${cls} is full.`; return; }
-  }
+            if (user.status === "Pending") {
+                errorEl.textContent = "Waiting for Admin approval.";
+                errorEl.classList.remove("hidden");
+                return;
+            }
 
-  // duplicate username
-  if (allUsers[ lower(raw) ] || lower(raw) === DEFAULT_ADMIN_KEY) { refs.signupError.textContent = 'Username already exists'; return; }
+            if (user.status === "Rejected") {
+                errorEl.textContent = "Account rejected.";
+                errorEl.classList.remove("hidden");
+                return;
+            }
 
-  // create in firestore
-  try {
-    await addDoc(colRef(USERS_PATH), {
-      username: raw,
-      role, pin,
-      class: role==='Student' ? cls : null,
-      school,
-      status: 'Pending',
-      createdAt: serverTimestamp()
-    });
-    refs.signupError.textContent = 'Signup submitted. Await admin approval.';
-    refs.signupForm.reset();
-  } catch(err) {
-    console.error("Signup failed", err); refs.signupError.textContent = 'Signup failed';
-  }
-}
+            currentUser = user;
+            showMessage("success", "Success!", "Logging in...");
+            redirectToDashboard(user.role);
 
-// -------------------- LOGIN (REPLACEMENT, more robust) --------------------
-async function handleLogin(e){
-  try {
-    e && e.preventDefault();
-
-    // defensive refs check
-    if (!refs || !refs.roleSelect || !refs.usernameInput || !refs.pinInput) {
-      console.error("Login: required DOM refs missing", refs);
-      alert("Login UI not initialized properly. Please refresh the page.");
-      return;
-    }
-
-    const role = (refs.roleSelect.value || '').trim();
-    const usernameRaw = (refs.usernameInput.value || '').trim();
-    const pin = (refs.pinInput.value || '').trim();
-
-    // UX: clear previous error
-    if (refs.errorEl) refs.errorEl.textContent = '';
-
-    if (!role || !usernameRaw || !pin) {
-      if (refs.errorEl) refs.errorEl.textContent = 'Please fill all login fields.';
-      else alert('Please fill all login fields.');
-      return;
-    }
-
-    console.log("Attempting login:", { role, usernameRaw });
-
-    // refresh user cache (best-effort)
-    await loadUserCache();
-
-    const key = lower(usernameRaw);
-
-    // Special-case default admin (builtin)
-    if (key === DEFAULT_ADMIN_KEY && pin === '0000' && role === 'Admin') {
-      currentUser = { username: 'Admin_Pethgam', role: 'Admin', id: 'builtin-admin', school: 'PS Pethgam Wagoora', status: 'Approved' };
-      console.log("Logged in as builtin admin");
-      onUserLoggedIn();
-      return;
-    }
-
-    // Lookup user in cache
-    const user = allUsers[key];
-    if (!user) {
-      console.warn("Login failed: user not found in cache for key:", key, "allUsers keys:", Object.keys(allUsers).slice(0,20));
-      if (refs.errorEl) refs.errorEl.textContent = 'Login failed: user not found';
-      else alert('Login failed: user not found');
-      return;
-    }
-
-    // PIN validation (string compare)
-    if (String(user.pin) !== String(pin)) {
-      console.warn("Login failed: invalid PIN for user:", key);
-      if (refs.errorEl) refs.errorEl.textContent = 'Login failed: invalid PIN';
-      else alert('Login failed: invalid PIN');
-      return;
-    }
-
-    // Role validation
-    if (String(user.role).trim() !== role) {
-      console.warn("Login failed: role mismatch. Stored:", user.role, "Selected:", role);
-      if (refs.errorEl) refs.errorEl.textContent = 'Login failed: selected role does not match';
-      else alert('Login failed: selected role does not match');
-      return;
-    }
-
-    // Status check
-    if (String(user.status) !== 'Approved') {
-      console.warn("Login failed: account status is", user.status);
-      if (refs.errorEl) refs.errorEl.textContent = 'Your account is pending approval.';
-      else alert('Your account is pending approval.');
-      return;
-    }
-
-    // success: set currentUser and proceed
-    currentUser = { ...user, id: user.id };
-    console.log("Login successful for", currentUser);
-    onUserLoggedIn();
-
-  } catch (err) {
-    console.error("handleLogin error:", err);
-    if (refs && refs.errorEl) refs.errorEl.textContent = 'Login error: ' + (err.message || err);
-    else alert('Login error: ' + (err.message || err));
-  }
-}
-
-// Ensure the login form handler is attached (safe attach)
-(function ensureLoginHandlerAttached(){
-  try {
-    // If refs not yet initialized, wait for DOMContentLoaded and re-run
-    if (!refs || !refs.loginForm) {
-      document.addEventListener('DOMContentLoaded', () => {
-        const lf = document.getElementById('login-form');
-        if (lf && !lf._loginHandlerAttached) {
-          lf.addEventListener('submit', handleLogin);
-          lf._loginHandlerAttached = true;
-          console.log("Login submit handler attached (late)");
+        } catch (err) {
+            errorEl.textContent = "Login error: " + err.message;
+            errorEl.classList.remove("hidden");
         }
-      });
-      return;
-    }
-    // Attach now if not already
-    if (refs.loginForm && !refs.loginForm._loginHandlerAttached) {
-      refs.loginForm.addEventListener('submit', handleLogin);
-      refs.loginForm._loginHandlerAttached = true;
-      console.log("Login submit handler attached");
-    }
-  } catch (e) {
-    console.warn("Failed to attach login handler:", e);
-  }
-})();
-
-
-// -------------------- On Login (REPLACEMENT: use existing auth-card id) --------------------
-function onUserLoggedIn(){
-  try {
-    // Hide the auth card (your HTML has id="auth-card")
-    const authCard = document.getElementById('auth-card');
-    if (authCard && authCard.classList) authCard.classList.add('hidden');
-
-    // Show profile, nav and role views
-    if (refs.profileCard) refs.profileCard.classList.remove('hidden');
-    if (refs.logoutBtn) refs.logoutBtn.classList.remove('hidden');
-    if (refs.welcomeMessage) refs.welcomeMessage.textContent = `${currentUser.username} (${currentUser.role})`;
-    if (refs.avatar) refs.avatar.textContent = (currentUser.username||'U').slice(0,1).toUpperCase();
-    if (refs.navAssignments) refs.navAssignments.classList.remove('hidden');
-    if (refs.navLeaderboard) refs.navLeaderboard.classList.remove('hidden');
-
-    // Role-specific UI
-    if (currentUser.role === 'Admin') {
-      if (refs.navUserMgmt) refs.navUserMgmt.classList.remove('hidden');
-      if (refs.navLocation) refs.navLocation.classList.remove('hidden');
-      if (refs.navAddMcqs) refs.navAddMcqs.classList.add('hidden');
-      if (refs.adminControls) refs.adminControls.classList.remove('hidden');
-      if (refs.adminManagementView) refs.adminManagementView.classList.remove('hidden');
-      showView('admin-management');
-      renderAdminControls();
-    } else if (currentUser.role === 'Teacher') {
-      if (refs.navAddMcqs) refs.navAddMcqs.classList.remove('hidden');
-      if (refs.adminControls) refs.adminControls.classList.add('hidden');
-      if (refs.teacherSummary) refs.teacherSummary.classList.remove('hidden');
-      showView('assignments');
-      if (refs.teacherView) refs.teacherView.classList.remove('hidden');
-      loadTeacherMcqs();
-    } else if (currentUser.role === 'Student') {
-      if (refs.studentSummary) refs.studentSummary.classList.remove('hidden');
-      showView('assignments');
-      if (refs.studentView) refs.studentView.classList.remove('hidden');
-      loadStudentStats();
-    }
-
-    // show logout UI if present
-    if (refs.openProfileLogout) refs.openProfileLogout.classList.remove('hidden');
-
-    console.log("onUserLoggedIn completed for", currentUser.username);
-  } catch (err) {
-    console.error("onUserLoggedIn error:", err);
-  }
-}
-// -------------------- Admin UI / Pending approvals / School list --------------------
-function renderPendingApprovals(){
-  if (!refs.pendingList) return;
-  refs.pendingList.innerHTML = '';
-  Object.values(allUsers).filter(u => u.status === 'Pending').forEach(u => {
-    const div = document.createElement('div');
-    div.className = 'p-2 border-b';
-    div.innerHTML = `<div class="flex justify-between items-center">
-      <div>
-        <div class="font-semibold">${u.username}</div>
-        <div class="text-xs text-gray-600">${u.role} — ${u.school} ${u.class?('— '+u.class):''}</div>
-      </div>
-      <div class="space-x-2">
-        <button class="approve-btn bg-green-600 text-white px-2 py-1 rounded" data-id="${u.id}">Approve</button>
-        <button class="reject-btn bg-red-500 text-white px-2 py-1 rounded" data-id="${u.id}">Reject</button>
-      </div>
-    </div>`;
-    refs.pendingList.appendChild(div);
-  });
-  // attach handlers
-  refs.pendingList.querySelectorAll('.approve-btn').forEach(b => b.addEventListener('click', async e => {
-    const id = b.getAttribute('data-id');
-    await updateDoc(doc(db, USERS_PATH, id), { status: 'Approved' });
-    alert('Approved');
-  }));
-  refs.pendingList.querySelectorAll('.reject-btn').forEach(b => b.addEventListener('click', async e => {
-    const id = b.getAttribute('data-id');
-    await deleteDoc(doc(db, USERS_PATH, id));
-    alert('Rejected and removed');
-  }));
-}
-
-function renderSchoolsEditor(){
-  if (!refs.schoolsList) return;
-  refs.schoolsList.innerHTML = '';
-  for (let i=0;i<80;i++){
-    const key = `School ${i+1}`;
-    const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center';
-    div.innerHTML = `<input data-school-index="${i}" class="border p-1 rounded w-full" value="${SCHOOLS[i] || key}"/>
-      <button class="update-school px-2 py-1 bg-blue-600 text-white rounded" data-index="${i}">Save</button>`;
-    refs.schoolsList.appendChild(div);
-  }
-  // update handlers (these are editing the local SCHOOLS array — you can persist to Firestore/special path if desired)
-  refs.schoolsList.querySelectorAll('.update-school').forEach(btn => btn.addEventListener('click', (ev) => {
-    const idx = +btn.getAttribute('data-index');
-    const input = refs.schoolsList.querySelector(`input[data-school-index="${idx}"]`);
-    if (input) {
-      SCHOOLS[idx] = input.value.trim() || `School ${idx+1}`;
-      alert('Updated local school name. To persist, implement Firestore school list.');
-    }
-  }));
-}
-
-function updateAdminSummary(){
-  if (!refs.adminSummary) return;
-  const totalTeachers = Object.values(allUsers).filter(u=>u.role==='Teacher').length;
-  const totalStudents = Object.values(allUsers).filter(u=>u.role==='Student').length;
-  const pending = Object.values(allUsers).filter(u=>u.status==='Pending').length;
-  refs.adminSummary.innerHTML = `<div>Total Teachers: ${totalTeachers}</div><div>Total Students: ${totalStudents}</div><div>Pending: ${pending}</div>`;
-  if (refs.adminStats) refs.adminStats.textContent = `Teachers ${totalTeachers} | Students ${totalStudents} | Pending ${pending}`;
-}
-
-// Render admin controls
-function renderAdminControls(){
-  renderPendingApprovals();
-  renderSchoolsEditor();
-  updateAdminSummary();
-}
-
-// -------------------- TEACHER MCQ CRUD --------------------
-
-// Save MCQ (teacher)
-async function saveMCQ(e){
-  e && e.preventDefault();
-  if (!currentUser || (currentUser.role !== 'Teacher' && currentUser.role !== 'Admin')) { alert('Only teachers/admins can save MCQs'); return; }
-  const cls = refs.classSelect.value;
-  const subj = refs.subjectSelect.value;
-  const qText = safeGet('mcq-question').value.trim();
-  const options = [safeGet('opt1').value.trim(), safeGet('opt2').value.trim(), safeGet('opt3').value.trim(), safeGet('opt4').value.trim()];
-  const correct = safeGet('correct-opt').value;
-
-  if (!cls || !subj || !qText || options.some(o=>!o) || !correct) { refs.mcqStatus.textContent = 'Please fill all fields'; return; }
-  // enforce daily limit: query MCQs by this teacher created today
-  try {
-    // query path: mcqs/{class}/{subject}
-    const path = `${MCQ_BASE}/${cls}/${subj}`;
-    const col = colRef(path);
-    // count today's MCQs by this creator (best-effort)
-    const today = new Date(); today.setHours(0,0,0,0);
-    // naive filter: load all and count; in production use server-side or indexed query with createdBy
-    const snap = await getDocs(query(col));
-    const myTodayCount = snap.docs.filter(d => {
-      const data = d.data();
-      const created = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : (data.createdAt? new Date(data.createdAt.seconds*1000): null);
-      return data.createdBy === currentUser.username && created && created >= today;
-    }).length;
-    if (myTodayCount >= TEACHER_DAILY_LIMIT) { refs.mcqStatus.textContent = 'Daily question limit reached'; return; }
-
-    // Build MCQ doc
-    await addDoc(col, {
-      question: qText,
-      options,
-      correct: Number(correct),
-      class: cls,
-      subject: subj,
-      createdBy: currentUser.username,
-      createdAt: serverTimestamp()
     });
-    refs.mcqStatus.textContent = 'Saved!';
-    // clear inputs
-    safeGet('mcq-question').value=''; safeGet('opt1').value=''; safeGet('opt2').value=''; safeGet('opt3').value=''; safeGet('opt4').value=''; safeGet('correct-opt').value='';
-    loadTeacherMcqs();
-  } catch(err) { console.error(err); refs.mcqStatus.textContent='Save failed'; }
 }
 
-// Load teacher's MCQs and show list (simplified)
-async function loadTeacherMcqs(){
-  if (!refs.teacherMcqList) return;
-  refs.teacherMcqList.innerHTML = '<div class="text-sm text-gray-600">Loading...</div>';
-  try {
-    // search all mcqs created by this teacher (naive scan across classes/subjects)
-    const results = [];
-    for (const cls of AVAILABLE_CLASSES){
-      for (const subj of AVAILABLE_SUBJECTS){
-        const col = colRef(`${MCQ_BASE}/${cls}/${subj}`);
-        const snap = await getDocs(query(col, orderBy('createdAt','desc'), limit(50)));
-        snap.forEach(d => {
-          const data = d.data(); if (data.createdBy === currentUser.username) results.push({id: d.id, path: `${MCQ_BASE}/${cls}/${subj}`, data});
+/* -----------------------------------------
+   🟢 SIGNUP (FULLY FIXED)
+------------------------------------------ */
+function renderSignup() {
+    return `
+        <div class="max-w-md mx-auto p-6 portal-card">
+            <h2 class="text-3xl font-extrabold text-green-300 text-center mb-6">Portal Signup</h2>
+
+            <form id="signup-form">
+
+                <label class="text-gray-300 text-sm">Role</label>
+                <select id="signup-role" required class="w-full p-3 mb-4 rounded-xl bg-gray-700/50 border border-gray-600 text-white">
+                    <option disabled selected>Select Role</option>
+                    <option value="Teacher">Teacher</option>
+                    <option value="Student">Student</option>
+                </select>
+
+                <div id="class-container" class="hidden mb-4">
+                    <label class="text-gray-300 text-sm">Class</label>
+                    <select id="signup-class" class="w-full p-3 rounded-xl bg-gray-700/50 border border-gray-600 text-white">
+                        <option disabled selected>Select Class</option>
+                        ${Array.from({length:8}, (_,i)=>`<option>${i+1}</option>`).join("")}
+                    </select>
+                </div>
+
+                <label class="text-gray-300 text-sm">School</label>
+                <select id="signup-school" required class="w-full p-3 mb-4 rounded-xl bg-gray-700/50 border border-gray-600 text-white">
+                    ${schools.map(s=>`<option>${s}</option>`).join("")}
+                </select>
+
+                <label class="text-gray-300 text-sm">Username</label>
+                <input id="signup-username" required class="w-full p-3 mb-4 rounded-xl bg-gray-700/50 border border-gray-600 text-white">
+
+                <label class="text-gray-300 text-sm">4-Digit PIN</label>
+                <input type="password" id="signup-pin" required minlength="4" maxlength="4" class="w-full p-3 mb-4 rounded-xl bg-gray-700/50 border border-gray-600 text-white">
+
+                <p id="signup-error" class="hidden text-red-400 text-sm mb-3"></p>
+
+                <button class="portal-btn w-full bg-green-500 hover:bg-green-600 py-3 rounded-xl">Submit</button>
+            </form>
+
+            <p class="text-center text-sm mt-4 text-gray-400">
+                Already have an account?
+                <button onclick="renderView('login')" class="text-blue-400 ml-1">Login</button>
+            </p>
+        </div>
+    `;
+}
+
+/* -----------------------------------------
+   SIGNUP EVENTS (FIXED)
+------------------------------------------ */
+function setupSignupEvents() {
+
+    signup-role.addEventListener("change", () => {
+        if (signup-role.value === "Student") {
+            class-container.classList.remove("hidden");
+        } else {
+            class-container.classList.add("hidden");
+        }
+    });
+
+    signup-form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const username = signup-username.value.trim();
+        const uid = username.replace(/[^a-zA-Z0-9]/g, "_");
+
+        const data = {
+            uid,
+            username,
+            role: signup-role.value,
+            class: signup-role.value === "Student" ? signup-class.value : null,
+            school: signup-school.value,
+            pin: signup-pin.value.trim(),
+            status: "Pending",
+            timestamp: Date.now()
+        };
+
+        const ref = doc(db, USERS_PATH, uid);
+        const exists = await getDoc(ref);
+
+        if (exists.exists()) {
+            signup-error.textContent = "Username already exists.";
+            signup-error.classList.remove("hidden");
+            return;
+        }
+
+        await setDoc(ref, data);
+
+        showMessage("success", "Submitted!", "Awaiting Admin approval.");
+        renderView("login");
+    });
+}
+
+/* -----------------------------------------
+   🔴 ADMIN DASHBOARD (FIXED)
+------------------------------------------ */
+function renderAdminDashboard() {
+    if (!currentUser || currentUser.role !== "Admin") return renderUnauthorized();
+
+    const pending = users.filter(u => u.status === "Pending");
+
+    return `
+        <h2 class="text-4xl text-red-400 text-center">Admin Dashboard</h2>
+
+        <button onclick="handleLogout()" class="portal-btn bg-red-600 text-white float-right">Logout</button>
+
+        <div class="portal-card p-4 mt-10">
+            <h3 class="text-yellow-300 text-2xl mb-4">Pending Signups (${pending.length})</h3>
+
+            <ul>
+                ${pending.map(u => `
+                    <li class="flex justify-between p-3 border-b border-gray-700">
+                        <div>
+                            <p class="text-white font-semibold">${u.username} (${u.role})</p>
+                            <p class="text-gray-400 text-xs">${u.school} — ${u.class || "N/A"}</p>
+                        </div>
+                        <div>
+                            <button onclick="handleUserApproval('${u.uid}', 'Approved')" class="bg-green-600 px-3 py-1 rounded-lg text-xs">Approve</button>
+                            <button onclick="handleUserApproval('${u.uid}', 'Rejected')" class="bg-red-600 px-3 py-1 rounded-lg text-xs">Reject</button>
+                        </div>
+                    </li>
+                `).join("")}
+            </ul>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+
+            <div class="portal-card p-4">
+                <h3 class="text-blue-300 text-xl mb-3">Post Notification</h3>
+                <form id="post-notification-form">
+                    <input name="msg" required placeholder="Message..." class="w-full p-2 rounded-xl bg-gray-700/50 border border-gray-600 text-white mb-2">
+                    <button class="portal-btn w-full bg-blue-500 hover:bg-blue-600">Post</button>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+/* -----------------------------------------
+   ADMIN EVENTS (FIXED)
+------------------------------------------ */
+function setupAdminEvents() {
+
+    document.getElementById("post-notification-form")
+        ?.addEventListener("submit", async e => {
+            e.preventDefault();
+            const msg = e.target.msg.value.trim();
+            await addDoc(collection(db, NOTIFY_PATH), {
+                message: msg,
+                timestamp: Date.now()
+            });
+            showMessage("success", "Posted!", "Notification updated.");
         });
-      }
-    }
-    // render
-    if (!results.length) { refs.teacherMcqList.innerHTML = '<div class="text-sm text-gray-600">No MCQs added yet.</div>'; return; }
-    refs.teacherMcqList.innerHTML = results.map(r => `<div class="p-2 border-b">
-      <div class="font-semibold">${r.data.question}</div>
-      <div class="text-xs text-gray-600">${r.data.class} • ${r.data.subject}</div>
-    </div>`).join('');
-  } catch(err){ console.error(err); refs.teacherMcqList.innerHTML = 'Failed to load MCQs'; }
 }
-
-// -------------------- STUDENT QUIZ PLAYER --------------------
-
-let quizState = { idx:0, questions:[], current:null };
-
-async function startQuiz(){
-  const cls = refs.studentClassSelect.value;
-  const subj = refs.studentSubjectSelect.value;
-  if (!cls || !subj) { alert('Choose class and subject'); return; }
-  // fetch mcqs for that class+subject (random sample)
-  try {
-    const col = colRef(`${MCQ_BASE}/${cls}/${subj}`);
-    const snap = await getDocs(query(col));
-    const docs = snap.docs.map(d => ({id:d.id, ...d.data()}));
-    if (!docs.length) { alert('No MCQs for selected class/subject'); return; }
-    // shuffle
-    for (let i = docs.length -1; i>0; i--){
-      const j = Math.floor(Math.random()*(i+1)); [docs[i],docs[j]]=[docs[j],docs[i]];
-    }
-    // prepare
-    quizState.questions = docs;
-    quizState.idx = 0;
-    quizState.current = docs[0];
-    renderQuestion();
-    refs.quizArea.classList.remove('hidden');
-    refs.nextQuestionBtn.classList.add('hidden');
-  } catch(err){ console.error(err); alert('Failed to start quiz'); }
-}
-
-function renderQuestion(){
-  const q = quizState.current;
-  if (!q) return;
-  refs.questionText.textContent = q.question;
-  refs.questionOptions.innerHTML = '';
-  q.options.forEach((opt, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'block w-full text-left p-2 border rounded';
-    btn.textContent = opt;
-    btn.addEventListener('click', () => handleAnswer(i+1, q));
-    refs.questionOptions.appendChild(btn);
-  });
-  refs.quizFeedback.textContent = '';
-}
-
-async function handleAnswer(selected, qdoc){
-  const correct = Number(qdoc.correct);
-  if (selected === correct) {
-    refs.quizFeedback.textContent = 'Wow! You are doing wonders!';
-    // award +5 coins
-    await awardCoinsForUser(currentUser.username, 5);
-  } else {
-    refs.quizFeedback.textContent = 'No problem, try next time!';
-  }
-  // show next button
-  refs.nextQuestionBtn.classList.remove('hidden');
-  refs.nextQuestionBtn.onclick = () => {
-    quizState.idx++;
-    if (quizState.idx >= quizState.questions.length) {
-      alert('Quiz completed');
-      refs.quizArea.classList.add('hidden');
-    } else {
-      quizState.current = quizState.questions[quizState.idx];
-      renderQuestion();
-    }
-  };
-}
-
-// Award coins & update trophy status
-async function awardCoinsForUser(username, amount){
-  if (!username) return;
-  try {
-    // coins doc per username (lowercase)
-    const key = lower(username);
-    const docRef = doc(db, COINS_PATH, key);
-    const cur = await getDoc(docRef);
-    if (!cur.exists()){
-      await setDoc(docRef, { username, coins: amount, updatedAt: serverTimestamp() });
-    } else {
-      await updateDoc(docRef, { coins: increment(amount), updatedAt: serverTimestamp() });
-    }
-    // update UI
-    await loadStudentStats();
-    await loadLeaderboards();
-  } catch(err){ console.error('awardCoins failed', err); }
-}
-
-// Load student coins & trophy
-async function loadStudentStats(){
-  if (!currentUser) return;
-  try {
-    const key = lower(currentUser.username);
-    const cdoc = await getDoc(doc(db, COINS_PATH, key));
-    const coins = cdoc.exists() ? (cdoc.data().coins || 0) : 0;
-    refs.studentCoinsEl && (refs.studentCoinsEl.textContent = coins);
-    let trophy = '—';
-    if (coins >= Trophies.GOLD) trophy = '🏆 Gold';
-    else if (coins >= Trophies.SILVER) trophy = '🥈 Silver';
-    else if (coins >= Trophies.BRONZE) trophy = '🥉 Bronze';
-    refs.studentTrophyEl && (refs.studentTrophyEl.textContent = trophy);
-  } catch(e){ console.error(e); }
-}
-
-// -------------------- LEADERBOARDS --------------------
-// ==============================
-// LEADERBOARDS MODULE
-// ==============================
-
-// Fetch coin records for all students
-async function fetchAllCoinRecords() {
-  const snap = await getDocs(colRef(COINS_PATH));
-  let results = [];
-  snap.forEach(docSnap => {
-    let d = docSnap.data();
-    d.id = docSnap.id;
-    results.push(d);
-  });
-  return results;
-}
-
-// Render Class-wise Leaderboard
-async function renderClassLeaderboard() {
-  const selectedClass = safeGet("leaderboard-class-select").value;
-  const box = safeGet("class-leaderboard");
-  box.innerHTML = "Loading...";
-
-  const data = await fetchAllCoinRecords();
-  const filtered = data
-    .filter(u => u.class === selectedClass)
-    .sort((a,b) => (b.totalCoins || 0) - (a.totalCoins || 0));
-
-  box.innerHTML = filtered.length === 0 
-    ? "<p>No records found</p>"
-    : filtered.map((x,i)=>`
-      <div class="border p-2 rounded mb-1">
-        <strong>${i+1}. ${x.username}</strong><br>
-        Coins: ${x.totalCoins || 0}
-      </div>
-    `).join("");
-}
-
-// Render Subject-wise Leaderboard
-async function renderSubjectLeaderboard() {
-  const selectedClass = safeGet("leaderboard-class-select-2").value;
-  const selectedSubject = safeGet("leaderboard-subject-select").value;
-  const box = safeGet("subject-leaderboard");
-  box.innerHTML = "Loading...";
-
-  const data = await fetchAllCoinRecords();
-  const filtered = data
-    .filter(u => u.class === selectedClass)
-    .sort((a,b) => 
-      ((b.subjectCoins?.[selectedSubject] || 0) - 
-       (a.subjectCoins?.[selectedSubject] || 0))
-    );
-
-  box.innerHTML = filtered.length === 0 
-    ? "<p>No records found</p>"
-    : filtered.map((x,i)=>`
-      <div class="border p-2 rounded mb-1">
-        <strong>${i+1}. ${x.username}</strong><br>
-        ${selectedSubject}: ${(x.subjectCoins?.[selectedSubject] || 0)}
-      </div>
-    `).join("");
-}
-
-// Render Overall Leaderboard
-async function renderOverallLeaderboard() {
-  const box = safeGet("overall-leaderboard");
-  box.innerHTML = "Loading...";
-
-  const data = await fetchAllCoinRecords();
-  const sorted = data.sort((a,b)=> (b.totalCoins || 0) - (a.totalCoins || 0));
-
-  box.innerHTML = sorted.length === 0
-    ? "<p>No records found</p>"
-    : sorted.map((x,i)=>`
-      <div class="border p-2 rounded mb-1">
-        <strong>${i+1}. ${x.username}</strong><br>
-        Total: ${x.totalCoins || 0}
-      </div>
-    `).join("");
-}
-
-// ==============================
-// Event Listeners for Leaderboards
-// ==============================
-
-safeGet("leaderboard-class-select").addEventListener("change", renderClassLeaderboard);
-safeGet("leaderboard-class-select-2").addEventListener("change", renderSubjectLeaderboard);
-safeGet("leaderboard-subject-select").addEventListener("change", renderSubjectLeaderboard);
-
-// Auto load overall leaderboard
-function loadAllLeaderboards() {
-  renderOverallLeaderboard();
-  if (safeGet("leaderboard-class-select").value)
-    renderClassLeaderboard();
-  if (safeGet("leaderboard-class-select-2").value &&
-      safeGet("leaderboard-subject-select").value)
-    renderSubjectLeaderboard();
-}
-
-// Call when leaderboard page is opened
-safeGet("nav-leaderboard").addEventListener("click", () => {
-  setTimeout(loadAllLeaderboards, 300);
-});
-// -------------------- small helpers --------------------
-
-function showView(name){
-  // name: landing, assignments, admin-management, leaderboards
-  const views = {
-    landing: refs.landingView,
-    assignments: refs.assignmentsView,
-    'admin-management': refs.adminManagementView,
-    leaderboards: refs.leaderboardView,
-    leaderboards_alt: refs.leaderboardView
-  };
-  // hide all
-  [refs.landingView, refs.assignmentsView, refs.adminManagementView, refs.leaderboardView].forEach(v=>v && v.classList.add('hidden'));
-  // show target
-  if (views[name]) views[name].classList.remove('hidden');
-  // extra: reveal internal role views
-  if (name === 'assignments') {
-    // teacher/student subviews toggled elsewhere
-    refs.assignmentsView.classList.remove('hidden');
-  }
-}
-
-// Logout
-function handleLogout(){
-  currentUser = null;
-  refs.profileCard.classList.add('hidden');
-  refs.logoutBtn.classList.add('hidden');
-  safeGet('login-container') && (safeGet('login-container').classList.remove('hidden'));
-  refs.navUserMgmt.classList.add('hidden');
-  refs.navAddMcqs.classList.add('hidden');
-  refs.adminControls.classList.add('hidden');
-  refs.teacherSummary.classList.add('hidden');
-  refs.studentSummary.classList.add('hidden');
-  // clear forms
-  refs.usernameInput.value = '';
-  refs.pinInput.value = '';
-}
-
-// -------------------- listeners to refresh leaderboards when coins change  --------------------
-function startCoinsListener(){
-  try {
-    const q = query(colRef(COINS_PATH), orderBy('updatedAt','desc'));
-    onSnapshot(q, snap => {
-      loadLeaderboards();
-      if (currentUser && currentUser.role === 'Student') loadStudentStats();
-    });
-  } catch(e){ console.warn(e); }
-}
-
-// start up
-initApp().then(()=> {
-  // attach some live listeners
-  startCoinsListener();
-  loadLeaderboards();
-}).catch(e => console.error(e));
 
 </script>
 
