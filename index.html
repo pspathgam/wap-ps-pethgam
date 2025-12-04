@@ -1,698 +1,1280 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pethgam Wagoora — Winter Assignment Portal (C3)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winter Assignment Portal Zone Wagoora</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Dark background */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #d1d5db;
+        }
 
-<!-- Tailwind -->
-<script src="https://cdn.tailwindcss.com"></script>
+        /* Base styles for the playful, glassmorphism card */
+        .portal-card {
+            background-image: linear-gradient(135deg, rgba(255, 105, 180, 0.2), rgba(100, 255, 218, 0.2)); /* Pink and Cyan */
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px; /* Required rounded corners */
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
 
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-:root{--bg:#0d1117;--muted:#9ca3af}
-body{font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:#d1d5db;margin:0;min-height:100vh}
-.portal-card{background-image:linear-gradient(135deg, rgba(253,224,71,0.06), rgba(96,165,250,0.04));border:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.4)}
-.portal-btn{transition:all .2s ease}
-.ticker-wrap{width:100%;overflow:hidden;background:#fcd34d;color:#1f2937}
-.ticker{display:inline-block;white-space:nowrap;padding-left:100%;animation:ticker 18s linear infinite}
-@keyframes ticker{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(-100%,0,0)}}
-.snow-container{position:fixed;inset:0;pointer-events:none;z-index:5;overflow:hidden}
-.snowflake{position:absolute;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.85);opacity:.9;filter:blur(.2px)}
-.toast{position:fixed;right:1rem;top:4rem;z-index:60;padding:.75rem 1rem;border-radius:.5rem;color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.4)}
-.input, .btn-primary{width:100%}
-.input{padding:.6rem;border-radius:.6rem;background:#111827;border:1px solid rgba(255,255,255,0.04);color:#e6eef8}
-.btn-primary{background:#3b82f6;color:#fff;padding:.6rem;border-radius:.6rem}
-.small-muted{color:var(--muted);font-size:.9rem}
-</style>
+        /* Hover animation for fun buttons */
+        .portal-btn {
+            transition: all 0.3s ease;
+            transform: scale(1);
+            font-weight: 800; /* Bolder font for kids */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .portal-btn:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
+        }
+
+        /* New input style for child-friendly forms */
+        .portal-input {
+            border: 2px solid #64ffda; /* Cyan border */
+            transition: border-color 0.3s;
+        }
+        .portal-input:focus {
+            border-color: #ff69b4; /* Pink focus */
+            outline: none;
+        }
+
+        /* Snowflake Animation Styling (Retained for Winter Theme) */
+        .snow-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .snowflake {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(-10vh) translateX(0); opacity: 0.8; }
+            100% { transform: translateY(100vh) translateX(20px); opacity: 0.2; }
+        }
+        
+        /* Leaderboard color definitions */
+        .rank-1 { background-color: #FFD700; color: #1f2937; } /* Gold */
+        .rank-2 { background-color: #C0C0C0; color: #1f2937; } /* Silver */
+        .rank-3 { background-color: #CD7F32; color: #1f2937; } /* Bronze */
+        .rank-default { background-color: #374151; color: #f3f4f6; }
+        
+        /* Ticker Bar */
+        .ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            background-color: #ff69b4; /* Bright Pink */
+            color: #ffffff;
+            font-weight: 700;
+        }
+        .ticker {
+            display: inline-block;
+            white-space: nowrap;
+            padding-left: 100%;
+            animation: ticker 15s linear infinite;
+        }
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+    </style>
 </head>
 <body class="flex flex-col min-h-screen">
 
-<!-- Snow -->
-<div class="snow-container" id="snow-container"></div>
-
-<!-- Ticker -->
-<div class="ticker-wrap">
-  <div class="ticker px-4 py-2" id="notification-ticker">
-    Winter Vacation Assignment Released Today &nbsp;&nbsp; | &nbsp;&nbsp;
-    New Online Quiz Available &nbsp;&nbsp; | &nbsp;&nbsp; Check the Leaderboard!
-  </div>
-</div>
-
-<header class="p-6 text-center z-20 relative">
-  <h1 class="text-3xl md:text-4xl font-extrabold text-yellow-300">Winter Assignment Portal</h1>
-  <p class="text-blue-300 mt-1">Government Primary School Pethgam Wagoora</p>
-</header>
-
-<main class="flex-grow flex items-start justify-center p-6">
-  <div id="app" class="w-full max-w-5xl portal-card p-6">
-    <div id="content-view" class="">
-      <div class="flex flex-col items-center justify-center p-8 text-center">
-        <svg class="animate-spin h-8 w-8 text-blue-400 mb-4" viewBox="0 0 24 24" fill="none">
-          <path d="M12 4.75V6.25M17.127 6.873l-1.061 1.061M19.25 12h-1.5M17.127 17.127l-1.061-1.061M12 17.75v1.5M7.934 16.066l-1.061 1.061M6.25 12h-1.5M7.934 7.934l-1.061-1.061" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <p class="text-blue-300 font-semibold">Initializing Portal and connecting to database...</p>
-      </div>
+    <!-- Snow Animation at the top -->
+    <div class="snow-container" id="snow-container"></div>
+    
+    <!-- Ticker Bar -->
+    <div class="ticker-wrap w-full py-2 z-20">
+        <div class="ticker" id="notification-ticker">
+            Winter Vacation Assignment Released Today &nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp; New Online Quiz Available &nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp; Check the Leaderboard for Ranks!
+        </div>
     </div>
-  </div>
-</main>
 
-<footer class="text-center text-xs p-4 border-t border-gray-700/40">
-  <p class="text-gray-400 mb-1">Designed & Developed by Mohammad Ashraf Rather</p>
-  <p class="text-gray-500">Government Primary School Pethgam Wagoora | Winter Assignment Portal 2025</p>
-  <p class="text-gray-600 mt-2">User ID: <span id="footer-user-id">N/A</span> | App ID: <span id="footer-app-id">N/A</span></p>
-</footer>
+    <header class="p-6 text-center z-20">
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-black mb-2 text-cyan-400 drop-shadow-lg">
+            Winter Assignment Portal <span class="text-pink-400">Zone Wagoora</span>
+        </h1>
+        <h2 class="text-xl sm:text-2xl font-light text-yellow-300">
+            Government Primary School Pethgam Wagoora
+        </h2>
+    </header>
 
-<!-- Toast container -->
-<div id="toast-area"></div>
+    <main class="flex-grow flex items-start justify-center p-4 md:p-8 z-20">
+        <div id="app-container" class="w-full max-w-4xl portal-card p-4 sm:p-8">
+            <!-- Content will be rendered here -->
+            <div id="content-view">
+                <div class="flex flex-col items-center justify-center p-8 text-center">
+                    <div class="animate-spin h-10 w-10 text-pink-400 mb-4">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4.75V6.25M17.127 6.873l-1.061 1.061M19.25 12h-1.5M17.127 17.127l-1.061-1.061M12 17.75v1.5M7.934 16.066l-1.061 1.061M6.25 12h-1.5M7.934 7.934l-1.061-1.061" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    </div>
+                    <p class="text-xl font-bold text-cyan-300">Loading Fun Zone Data...</p>
+                </div>
+            </div>
+        </div>
+    </main>
 
-<!-- Snow script -->
-<script>
-(function generateSnow(){
-  const container = document.getElementById('snow-container');
-  for(let i=0;i<40;i++){
-    const s = document.createElement('div');
-    s.className='snowflake';
-    s.style.left = Math.random()*100 + '%';
-    s.style.top = (-10 - Math.random()*20) + 'vh';
-    s.style.opacity = (0.4 + Math.random()*0.6).toString();
-    s.style.transform = `translateY(${Math.random()*5}vh)`;
-    const dur = 6 + Math.random()*10;
-    s.style.animation = `fall ${dur}s linear infinite`;
-    s.style.width = (4 + Math.random()*6) + 'px';
-    s.style.height = s.style.width;
-    container.appendChild(s);
-  }
-})();
-</script>
+    <!-- Footer -->
+    <footer class="text-center text-xs p-4 border-t border-gray-700/50 mt-8 z-20">
+        <p class="text-gray-400 mb-1">Designed & Developed by Mohammad Ashraf Rather</p>
+        <p class="text-gray-500">Government Primary School Pethgam Wagoora | Winter Assignment Portal 2025</p>
+        <p class="text-gray-600 mt-2">User ID: <span id="footer-user-id">N/A</span> | App ID: <span id="footer-app-id">N/A</span></p>
+    </footer>
 
-<!-- Main Firebase + App Script -->
-<script type="module">
-/* =================================================
-   FULL PORTAL SCRIPT — Option C3 (All-in-one)
-   Uses Firebase JS Modules v11.6.1
-   Firestore paths: artifacts/{appId}/public/data/{collection}/{docId}
-   ================================================= */
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import {
-  getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs,
-  onSnapshot, query, where, updateDoc
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-/* -------------------------
-   Config & Globals
-   ------------------------- */
-const appId = (typeof __app_id !== 'undefined') ? __app_id : 'gspw-portal-default-id';
-document.getElementById('footer-app-id').textContent = appId;
-
-let firebaseConfig = {};
-const hardcodedConfig = {
-  apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
-  authDomain: "wap-ps-pethgam.firebaseapp.com",
-  databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
-  projectId: "wap-ps-pethgam",
-  storageBucket: "wap-ps-pethgam.firebasestorage.app",
-  messagingSenderId: "430925411362",
-  appId: "1:430925411362:web:22857dee585d02fc54467b"
-};
-
-try {
-  firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) ? JSON.parse(__firebase_config) : hardcodedConfig;
-} catch(e){
-  console.error("Invalid __firebase_config JSON, using fallback.", e);
-  firebaseConfig = hardcodedConfig;
-}
-
-/* Firestore base path builder (valid odd segments) */
-const baseDataPath = (col) => `artifacts/${appId}/public/data/${col}`;
-
-/* App state */
-let app, db, auth;
-let currentUser = null;
-let users = [], assignments = [], notifications = [], mcqs = [];
-let isPublicReady = false;
-
-/* Mandatory test users (idempotent seed) */
-const mandatoryTestUsers = [
-  { role: "Admin", username: "admin@school.com", pin: "1234", status: "Approved", class: null, school: "G.P.S Pethgam Wagoora", score: 999 },
-  { role: "Teacher", username: "teacher@school.com", pin: "5678", status: "Approved", class: 5, school: "G.P.S Pethgam Wagoora", score: 0 },
-  { role: "Student", username: "student@school.com", pin: "0000", status: "Approved", class: 5, school: "G.P.S Pethgam Wagoora", score: 85 }
-];
-
-/* -------------------------
-   Small UI helpers
-   ------------------------- */
-function toast(type, title, text, ms = 3000) {
-  const area = document.getElementById('toast-area');
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.style.background = (type === 'error') ? '#ef4444' : (type === 'info' ? '#0284c7' : '#16a34a');
-  el.innerHTML = `<strong>${title}</strong><div style="font-size:.9rem;margin-top:.2rem">${text}</div>`;
-  area.appendChild(el);
-  setTimeout(()=>{ el.style.transform='translateX(120%)'; el.style.opacity='0'; setTimeout(()=>el.remove(),400); }, ms);
-}
-
-/* Quick helper to render HTML into content-view */
-function mount(html) { document.getElementById('content-view').innerHTML = html; }
-
-/* -------------------------
-   Initialize Firebase + Auth
-   ------------------------- */
-async function init() {
-  try {
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    auth = getAuth(app);
-
-    console.log('Firebase initialized.');
-    setupPublicListeners();
-
-    // Auth flow: anonymous or custom token if provided
-    const initialAuthToken = (typeof __initial_auth_token !== 'undefined') ? __initial_auth_token : null;
-
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, arrayUnion, arrayRemove, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- Global Config Variables (MANDATORY) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gspw-portal-default-id';
+        
+        let firebaseConfig = {};
+        const hardcodedConfigString = '{"apiKey":"AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM","authDomain":"wap-ps-pethgam.firebaseapp.com","databaseURL":"https://wap-ps-pethgam-default-rtdb.firebaseio.com","projectId":"wap-ps-pethgam","storageBucket":"wap-ps-pethgam.firebasestorage.app","messagingSenderId":"430925411362","appId":"1:430925411362:web:22857dee585d02fc54467b"}';
+        const rawConfig = (typeof __firebase_config !== 'undefined' && __firebase_config !== '') ? __firebase_config : hardcodedConfigString;
+        
         try {
-          if (initialAuthToken) {
-            await signInWithCustomToken(auth, initialAuthToken);
-            console.log('Signed in with custom token.');
-          } else {
-            await signInAnonymously(auth);
-            console.log('Signed in anonymously.');
-          }
-        } catch (err) {
-          console.warn('Auth failed', err);
-          render('login');
+            firebaseConfig = JSON.parse(rawConfig);
+        } catch (e) {
+            console.error("[FATAL ERROR] Failed to parse __firebase_config JSON:", e);
+            document.getElementById('content-view').innerHTML = `<p class="text-red-500 text-center">Initialization Failed: Invalid Firebase Configuration JSON.</p>`;
         }
-      } else {
-        console.log('Auth state ready, uid:', user.uid);
-        document.getElementById('footer-user-id').textContent = user.uid;
-        // Attempt to find profile (if exists) and redirect appropriately
-        findAndRedirectUser(user.uid);
-      }
-    });
 
-    // render homepage while things load
-    render('homepage');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-  } catch (err) {
-    console.error('Init error', err);
-    mount(`<div class="p-6 text-center"><h2 class="text-red-400">Initialization failed</h2><p class="small-muted">${err.message}</p></div>`);
-  }
-}
+        // Note: Using 'score' as the coin count field for students
+        const mandatoryTestUsers = [
+            { role: 'Admin', username: 'admin@school.com', pin: '1234', status: 'Approved', class: null, school: 'G.P.S Pethgam Wagoora', score: 999, rank: 0, timestamp: Date.now() },
+            { role: 'Teacher', username: 'teacher@school.com', pin: '5678', status: 'Approved', class: 5, school: 'G.P.S Pethgam Wagoora', score: 0, rank: 0, timestamp: Date.now() },
+            { role: 'Student', username: 'student@school.com', pin: '0000', status: 'Approved', class: 5, school: 'G.P.S Pethgam Wagoora', score: 8500, rank: 0, timestamp: Date.now() }, // High score for Gold Trophy test
+        ];
 
-/* -------------------------
-   Public listeners (assignments, mcqs, notifications, users)
-   ------------------------- */
-function setupPublicListeners() {
-  if (isPublicReady) return;
 
-  const assignmentsCol = collection(db, baseDataPath('assignments'));
-  const mcqsCol = collection(db, baseDataPath('mcqs'));
-  const notifyCol = collection(db, baseDataPath('notifications'));
-  const usersCol = collection(db, baseDataPath('users'));
+        // --- Firebase Service Instances ---
+        let app, db, auth;
+        
+        // --- Application State ---
+        let currentUser = null;
+        let users = [];
+        let schools = ["G.P.S Pethgam Wagoora", "G.P.S Kandi", "G.P.S Bonigam"];
+        let assignments = [];
+        let mcqs = [];
+        let notifications = [];
+        let currentView = 'initializing';
+        let isPublicDataReady = false; 
+        
+        // --- NEW QUIZ STATE ---
+        let currentQuizState = {
+            myClassMcqs: [],
+            currentIndex: 0,
+            correctCount: 0,
+            feedback: null // Stores immediate feedback message
+        };
 
-  onSnapshot(assignmentsCol, snap => {
-    assignments = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-    if (currentViewIs(['teacher','student'])) render(currentViewName());
-  });
+        document.getElementById('footer-app-id').textContent = appId;
+        
+        // --- Utility Functions ---
 
-  onSnapshot(mcqsCol, snap => {
-    mcqs = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-  });
+        /** Logs messages to the console and handles user ID display. */
+        function logStatus(message, isError = false) {
+            if (isError) {
+                console.error(`[PORTAL ERROR] ${message}`);
+            } else {
+                console.log(`[PORTAL INFO] ${message}`);
+            }
+        }
 
-  onSnapshot(notifyCol, snap => {
-    notifications = snap.docs.map(d=>({ id:d.id, ...d.data() })).sort((a,b)=>b.timestamp - a.timestamp);
-    updateTicker();
-  });
+        /** Simple UI feedback to prevent using alert() */
+        function showMessage(type, title, message) {
+            const container = document.getElementById('app-container');
+            const messageEl = document.createElement('div');
+            messageEl.className = `fixed top-16 right-4 p-4 rounded-xl shadow-lg z-50 transition-transform transform ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white`;
+            messageEl.innerHTML = `<strong class="block text-sm">${title}</strong><span class="text-xs">${message}</span>`;
+            document.body.appendChild(messageEl);
+            
+            setTimeout(() => {
+                messageEl.classList.add('translate-x-full');
+                messageEl.addEventListener('transitionend', () => messageEl.remove());
+            }, 3000);
+        }
 
-  onSnapshot(usersCol, snap => {
-    users = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-    ensureSeedUsers();
-  });
+        /** Renders a specific component view into the main container. */
+        function renderView(viewName) {
+            currentView = viewName;
+            const viewContainer = document.getElementById('content-view');
+            
+            if (!isPublicDataReady && viewName !== 'homepage' && viewName !== 'login' && viewName !== 'signup' && viewName !== 'leaderboard') {
+                 viewContainer.innerHTML = `<p class="text-center text-red-500">Loading essential data...</p>`;
+                 return;
+            }
 
-  isPublicReady = true;
-}
+            switch (viewName) {
+                case 'homepage':
+                    viewContainer.innerHTML = renderHomepage();
+                    break;
+                case 'login':
+                    viewContainer.innerHTML = renderLogin();
+                    setupLoginEvents();
+                    break;
+                case 'signup':
+                    viewContainer.innerHTML = renderSignup();
+                    setupSignupEvents();
+                    break;
+                case 'admin':
+                    viewContainer.innerHTML = renderAdminDashboard();
+                    setupAdminEvents();
+                    break;
+                case 'teacher':
+                    viewContainer.innerHTML = renderTeacherDashboard();
+                    setupTeacherEvents();
+                    break;
+                case 'student':
+                    viewContainer.innerHTML = renderStudentDashboard();
+                    setupStudentEvents();
+                    break;
+                case 'mcqAttempt':
+                    viewContainer.innerHTML = renderMcqAttempt();
+                    setupMcqEvents();
+                    break;
+                case 'leaderboard':
+                    viewContainer.innerHTML = renderLeaderboard();
+                    break;
+                default:
+                    viewContainer.innerHTML = `<h2 class="text-red-500 text-center">404: View Not Found</h2>`;
+            }
+        }
 
-/* -------------------------
-   Ensure mandatory seed users exist (idempotent)
-   ------------------------- */
-async function ensureSeedUsers() {
-  for (const u of mandatoryTestUsers) {
-    const uid = u.username.replace(/[^a-zA-Z0-9]/g,'_');
-    const ref = doc(db, baseDataPath('users'), uid);
-    const s = await getDoc(ref);
-    if (!s.exists()) {
-      await setDoc(ref, { ...u, uid, timestamp: Date.now() });
-      console.log('Seed user created:', u.username);
-    }
-  }
-}
+        /** Checks the database directly and, if needed, creates the mandatory test users. */
+        async function ensureMandatoryTestUsersExist() {
+            if (!db) return;
+            const dataPath = `artifacts/${appId}/public/data/users`;
+            
+            for (const testUser of mandatoryTestUsers) {
+                const seedDocId = testUser.username.replace(/[^a-zA-Z0-9]/g, '_');
+                const userRef = doc(db, dataPath, seedDocId);
+                
+                const docSnap = await getDoc(userRef); 
 
-/* -------------------------
-   Utility: current view state
-   ------------------------- */
-let __currentView = 'initializing';
-function currentViewName(){ return __currentView; }
-function currentViewIs(list){ return list.includes(__currentView); }
-function render(name){ __currentView = name; switch(name){
-  case 'homepage': return mount(renderHomepage());
-  case 'login': return mount(renderLogin());
-  case 'signup': return mount(renderSignup());
-  case 'admin': return mount(renderAdminDashboard());
-  case 'teacher': return mount(renderTeacherDashboard());
-  case 'student': return mount(renderStudentDashboard());
-  case 'leaderboard': return mount(renderLeaderboard());
-  default: return mount(`<div class="p-6 text-center">View not found</div>`);
-}}
+                if (!docSnap.exists()) {
+                    logStatus(`Creating mandatory test user: ${testUser.username} (Self-Healing)`);
+                    
+                    const userData = { ...testUser, uid: seedDocId }; 
+                    
+                    await setDoc(doc(db, dataPath, seedDocId), userData);
+                    logStatus(`Successfully created seed user: ${testUser.username}`);
+                }
+            }
+        }
 
-/* -------------------------
-   Find user doc by auth uid and redirect
-   ------------------------- */
-async function findAndRedirectUser(uid) {
-  // User documents are stored under artifacts/{appId}/public/data/users/{docId}
-  // Our app maps user documents by sanitized username; however some systems may store by auth uid.
-  // We'll try both strategies: first doc id by uid, then search for a document where doc.uid == uid.
-  const userDocRef = doc(db, baseDataPath('users'), uid);
-  const snap = await getDoc(userDocRef);
-  if (snap.exists()) {
-    currentUser = snap.data();
-    redirectByRole(currentUser.role);
-    return;
-  }
-  // fallback: search users collection for a doc with uid == uid
-  const usersCol = collection(db, baseDataPath('users'));
-  const q = query(usersCol, where('uid','==',uid));
-  const qsnap = await getDocs(q);
-  if (!qsnap.empty) {
-    const d = qsnap.docs[0];
-    currentUser = { id:d.id, ...d.data() };
-    redirectByRole(currentUser.role);
-    return;
-  }
-  // no profile -> remain on homepage/login/signup flows
-  currentUser = null;
-  render('homepage');
-}
+        // --- Authentication & Initialization Logic ---
 
-/* -------------------------
-   Redirect helper
-   ------------------------- */
-function redirectByRole(role){
-  if (!role) return render('homepage');
-  if (role === 'Admin') render('admin');
-  else if (role === 'Teacher') render('teacher');
-  else if (role === 'Student') render('student');
-  else render('homepage');
-}
+        async function initializeData() {
+            try {
+                if (!firebaseConfig || Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey) {
+                    throw new Error("Firebase configuration is missing or incomplete.");
+                }
+                
+                logStatus("Attempting to initialize Firebase app...");
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                logStatus("Firebase services initialized successfully.");
 
-/* -------------------------
-   UI Renderers (homepage, login, signup, leaderboards, dashboards)
-   ------------------------- */
+                setupPublicListeners();
 
-function renderHomepage(){
-  return `
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="col-span-1 md:col-span-2">
-        <div class="portal-card p-6">
-          <h2 class="text-2xl text-yellow-300 font-bold">Welcome to the Winter Assignment Portal</h2>
-          <p class="small-muted mt-2">Enjoy learning, submit assignments, attempt quizzes, and climb the leaderboard.</p>
-          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <button class="portal-btn btn-primary" onclick="render('login')">Login</button>
-            <button class="portal-btn bg-green-600 text-white px-4 py-2 rounded-xl" onclick="render('signup')">Sign Up</button>
-            <button class="portal-btn bg-yellow-500 text-gray-900 px-4 py-2 rounded-xl" onclick="render('leaderboard')">Leaderboard</button>
-          </div>
-        </div>
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        logStatus(`Auth OK. User UID: ${user.uid}`);
+                        await findAndRedirectUser(user.uid);
+                        
+                    } else {
+                        logStatus("No user found. Attempting Firebase sign-in...");
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                                logStatus("Signed in with custom token.");
+                            } else {
+                                await signInAnonymously(auth);
+                                logStatus("Signed in anonymously.");
+                            }
+                        } catch (error) {
+                            logStatus(`Initial Authentication failed: ${error.code} - ${error.message}`, true);
+                            renderView('login');
+                        }
+                    }
+                });
 
-        <div class="portal-card p-4 mt-6">
-          <h3 class="text-lg font-semibold text-blue-300">Latest Assignments</h3>
-          <div id="home-assignments" class="mt-3">
-            ${assignments.length? assignments.slice(0,5).map(a=>`<div class="p-3 border-b border-gray-700"><strong>${a.title}</strong><div class="small-muted">${a.description||''}</div></div>`).join('') : '<p class="small-muted p-3">No assignments yet.</p>'}
-          </div>
-        </div>
-      </div>
+            } catch (e) {
+                logStatus(`FATAL INIT ERROR: ${e.message}`, true);
+                document.getElementById('content-view').innerHTML = `
+                    <div class="text-center p-8">
+                        <h2 class="text-4xl font-extrabold text-red-500 mb-4">Initialization Failed</h2>
+                        <p class="text-lg text-gray-400 mb-6">Please check the developer console for the detailed error message.</p>
+                        <p class="text-sm text-gray-500">Error: ${e.message}</p>
+                    </div>
+                `;
+            }
+        }
 
-      <div class="portal-card p-4">
-        <h3 class="text-lg font-semibold text-yellow-300">Notifications</h3>
-        <div class="mt-3" id="home-notifications">
-          ${notifications.length ? notifications.slice(0,6).map(n=>`<div class="p-2 border-b border-gray-700 small-muted">${n.message}</div>`).join('') : '<p class="small-muted p-2">No notifications yet.</p>'}
-        </div>
-      </div>
-    </div>
-  `;
-}
+        /** Sets up Firestore listeners for public data (Assignments, MCQs, Notifications) and ALL users (for Admin/Leaderboard). */
+        function setupPublicListeners() {
+            if (isPublicDataReady) return;
 
-/* -------------------------
-   Login renderer + events
-   ------------------------- */
-function renderLogin(){
-  return `
-    <div class="max-w-md mx-auto p-6 portal-card">
-      <h2 class="text-2xl font-bold text-blue-300">Login</h2>
-      <form id="form-login" class="mt-4 space-y-3">
-        <label class="small-muted">Role</label>
-        <select id="login-role" class="input"><option>Student</option><option>Teacher</option><option>Admin</option></select>
-        <label class="small-muted">Username (email or id)</label>
-        <input id="login-username" class="input" placeholder="e.g. student@school.com" />
-        <label class="small-muted">PIN</label>
-        <input id="login-pin" type="password" class="input" placeholder="4-digit PIN" />
-        <div id="login-error" class="text-red-400 text-sm hidden"></div>
-        <button class="btn-primary">Login</button>
-      </form>
-      <p class="small-muted mt-3">New? <button class="text-blue-300" onclick="render('signup')">Sign up</button></p>
-    </div>
-  `;
-}
+            const dataPath = `artifacts/${appId}/public/data`;
+            
+            const assignmentQuery = query(collection(db, `${dataPath}/assignments`));
+            const mcqQuery = query(collection(db, `${dataPath}/mcqs`));
+            const notificationQuery = query(collection(db, `${dataPath}/notifications`));
+            const userQuery = query(collection(db, `${dataPath}/users`));
 
-async function setupLogin() {
-  const form = document.getElementById('form-login');
-  if (!form) return;
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    const role = document.getElementById('login-role').value;
-    const username = document.getElementById('login-username').value.trim();
-    const pin = document.getElementById('login-pin').value.trim();
-    const err = document.getElementById('login-error');
-    err.classList.add('hidden');
+            onSnapshot(assignmentQuery, (snapshot) => {
+                assignments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                logStatus(`Loaded ${assignments.length} assignments.`);
+                if (currentView === 'teacher' || currentView === 'student') renderView(currentView);
+            });
 
-    if (!username || !pin) { err.textContent='Fill all fields'; err.classList.remove('hidden'); return; }
+            onSnapshot(mcqQuery, (snapshot) => {
+                mcqs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                logStatus(`Loaded ${mcqs.length} MCQs.`);
+                if (currentView === 'teacher' || currentView === 'student') renderView(currentView);
+            });
 
-    const uid = username.replace(/[^a-zA-Z0-9]/g,'_');
-    const ref = doc(db, baseDataPath('users'), uid);
-    let snap = await getDoc(ref);
+            onSnapshot(notificationQuery, (snapshot) => {
+                notifications = snapshot.docs.map(d => ({ ...d.data() })).sort((a, b) => b.timestamp - a.timestamp);
+                updateNotificationTicker();
+            });
+            
+            onSnapshot(userQuery, (snapshot) => {
+                users = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                logStatus(`Loaded ${users.length} users (for Admin/LB).`);
+                
+                ensureMandatoryTestUsersExist(); 
+                
+                if (currentView === 'admin' || currentView === 'leaderboard') renderView(currentView);
+            });
+            
+            isPublicDataReady = true;
+            logStatus("Public data listeners initialized.");
+        }
 
-    // If seed user missing, try seeding
-    if (!snap.exists()) {
-      if (mandatoryTestUsers.some(u=>u.username===username)) {
-        await ensureSeedUsers();
-        snap = await getDoc(ref);
-      }
-    }
+        /** Checks the public 'users' collection for the current user's profile and redirects. */
+        async function findAndRedirectUser(uid) {
+            const userRef = doc(db, `artifacts/${appId}/public/data/users`, uid);
+            
+            onSnapshot(userRef, (docSnap) => {
+                document.getElementById('footer-user-id').textContent = uid;
+                
+                if (docSnap.exists()) {
+                    const userData = { id: docSnap.id, ...docSnap.data() };
+                    
+                    if (userData.status === 'Approved') {
+                         currentUser = userData;
+                         if (currentView === 'initializing' || currentView === 'login' || currentView === 'signup' || currentView === 'homepage') {
+                            redirectToDashboard(currentUser.role);
+                         }
+                    } else if (userData.status === 'Pending') {
+                        currentUser = null;
+                        renderView('login');
+                        showMessage('info', 'Pending', 'Your signup is awaiting Admin approval.');
+                    } else {
+                        currentUser = null;
+                        renderView('login');
+                        showMessage('error', 'Rejected', 'Your account has been rejected or is inactive.');
+                    }
+                    
+                } else {
+                    currentUser = null;
+                    if (currentView === 'initializing') {
+                         renderView('homepage');
+                    }
+                }
+            }, (error) => {
+                logStatus(`Error listening to user document: ${error.message}`, true);
+                currentUser = null;
+                renderView('homepage');
+            });
+        }
 
-    if (!snap.exists()) { err.textContent='User not found'; err.classList.remove('hidden'); return; }
-    const user = snap.data();
-    if (user.role !== role || user.pin !== pin) { err.textContent='Invalid credentials'; err.classList.remove('hidden'); return; }
-    if (user.status !== 'Approved') { err.textContent='Account not approved yet'; err.classList.remove('hidden'); return; }
+        function redirectToDashboard(role) {
+            const requiredView = role.toLowerCase();
+            if (currentView === requiredView) return; 
 
-    currentUser = { ...user, id: snap.id };
-    toast('success','Logged in', `Welcome ${currentUser.username}`, 2200);
-    redirectByRole(currentUser.role);
-  };
-}
+            if (role === 'Admin') renderView('admin');
+            else if (role === 'Teacher') renderView('teacher');
+            else if (role === 'Student') renderView('student');
+            else renderView('homepage');
+        }
 
-/* -------------------------
-   Signup renderer + events
-   ------------------------- */
-function renderSignup(){
-  return `
-    <div class="max-w-md mx-auto p-6 portal-card">
-      <h2 class="text-2xl font-bold text-green-300">Sign Up</h2>
-      <form id="form-signup" class="mt-4 space-y-3">
-        <label class="small-muted">Role</label>
-        <select id="signup-role" class="input"><option>Student</option><option>Teacher</option></select>
-        <div id="signup-class-row" class="hidden">
-          <label class="small-muted">Class</label>
-          <select id="signup-class" class="input">${Array.from({length:8},(_,i)=>`<option>${i+1}</option>`).join('')}</select>
-        </div>
-        <label class="small-muted">School</label>
-        <select id="signup-school" class="input">${['G.P.S Pethgam Wagoora','G.P.S Kandi','G.P.S Bonigam'].map(s=>`<option>${s}</option>`).join('')}</select>
-        <label class="small-muted">Username (email/id)</label>
-        <input id="signup-username" class="input" placeholder="example@school.com" />
-        <label class="small-muted">4-digit PIN</label>
-        <input id="signup-pin" class="input" maxlength="4" />
-        <div id="signup-error" class="text-red-400 text-sm hidden"></div>
-        <button class="bg-green-500 text-white py-2 rounded-xl w-full">Submit for Approval</button>
-      </form>
-      <p class="small-muted mt-3">Already have an account? <button class="text-blue-300" onclick="render('login')">Login</button></p>
-    </div>
-  `;
-}
+        // --- View Rendering Functions (Child-Friendly Updates) ---
 
-function setupSignup() {
-  const form = document.getElementById('form-signup');
-  if (!form) return;
-  const roleEl = document.getElementById('signup-role');
-  const classRow = document.getElementById('signup-class-row');
+        function renderHomepage() {
+            return `
+                <div class="text-center p-4">
+                    <h2 class="text-4xl font-black text-pink-400 mb-6">🥳 Welcome to the Fun Zone! 🥳</h2>
+                    <p class="mb-8 text-xl font-medium text-cyan-300">
+                        Government Primary School Pethgam Wagoora is excited to bring you the Winter Assignment Portal 2025.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <button onclick="renderView('login')" class="portal-btn bg-purple-500 hover:bg-purple-600 text-white font-black py-4 px-6 rounded-full text-2xl shadow-lg">
+                            <span class="mr-2">🔑</span> Enter
+                        </button>
+                        <button onclick="renderView('signup')" class="portal-btn bg-cyan-500 hover:bg-cyan-600 text-gray-900 font-black py-4 px-6 rounded-full text-2xl shadow-lg">
+                            <span class="mr-2">📝</span> New Friend
+                        </button>
+                        <button onclick="renderView('leaderboard')" class="portal-btn bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-black py-4 px-6 rounded-full text-2xl shadow-lg">
+                            <span class="mr-2">🏆</span> Check Ranks
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderLogin() {
+            return `
+                <div class="max-w-md mx-auto p-8 portal-card">
+                    <h2 class="text-4xl font-black text-pink-300 mb-6 text-center">Ready to Play!</h2>
+                    <form id="login-form">
+                        <div class="mb-4">
+                            <label for="login-role" class="block text-lg font-medium text-cyan-300 mb-1">Select Role</label>
+                            <select id="login-role" name="role" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white focus:ring-pink-500 transition duration-150 text-lg">
+                                <option value="" disabled selected>Who are you?</option>
+                                <option value="Admin">Head Boss (Admin)</option>
+                                <option value="Teacher">Super Guide (Teacher)</option>
+                                <option value="Student">Star Player (Student)</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label for="login-username" class="block text-lg font-medium text-cyan-300 mb-1">Your ID/Email</label>
+                            <input type="text" id="login-username" name="username" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white focus:ring-pink-500 transition duration-150 text-lg">
+                        </div>
+                        <div class="mb-6">
+                            <label for="login-pin" class="block text-lg font-medium text-cyan-300 mb-1">Secret PIN</label>
+                            <input type="password" id="login-pin" name="pin" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white focus:ring-pink-500 transition duration-150 text-lg">
+                        </div>
+                        <p id="login-error" class="text-red-400 text-md font-bold mb-4 hidden"></p>
+                        <button type="submit" class="portal-btn w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-black py-3 rounded-xl shadow-md transition duration-200 text-xl">
+                            <span class="mr-2">🚀</span> Log In Now!
+                        </button>
+                    </form>
+                    <p class="text-center text-md mt-6">
+                        <span class="text-gray-400">Not signed up yet?</span>
+                        <button onclick="renderView('signup')" class="text-pink-400 hover:text-pink-300 ml-1 font-bold">Sign Up Here!</button>
+                    </p>
+                </div>
+            `;
+        }
 
-  roleEl.onchange = ()=> {
-    classRow.classList.toggle('hidden', roleEl.value!=='Student');
-  };
+        function setupLoginEvents() {
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const role = form.role.value;
+                const username = form.username.value.trim();
+                const pin = form.pin.value.trim();
+                const errorEl = document.getElementById('login-error');
+                errorEl.classList.add('hidden');
 
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    const username = document.getElementById('signup-username').value.trim();
-    const pin = document.getElementById('signup-pin').value.trim();
-    const role = document.getElementById('signup-role').value;
-    const sclass = (role==='Student')? document.getElementById('signup-class').value : null;
-    const school = document.getElementById('signup-school').value;
-    const err = document.getElementById('signup-error');
-    err.classList.add('hidden');
+                if (!role || !username || !pin) {
+                    errorEl.textContent = "Please fill in all fields.";
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
 
-    if (!username || !pin || pin.length!==4) { err.textContent='Fill fields correctly (PIN must be 4 digits)'; err.classList.remove('hidden'); return; }
+                try {
+                    const predictedUid = username.replace(/[^a-zA-Z0-9]/g, '_');
+                    const userRef = doc(db, `artifacts/${appId}/public/data/users`, predictedUid);
+                    
+                    let docSnap = await getDoc(userRef);
 
-    const uid = username.replace(/[^a-zA-Z0-9]/g,'_');
-    const ref = doc(db, baseDataPath('users'), uid);
-    const s = await getDoc(ref);
-    if (s.exists()) { err.textContent='Username already exists'; err.classList.remove('hidden'); return; }
+                    if (!docSnap.exists()) {
+                         const isSeedUser = mandatoryTestUsers.some(u => u.username === username);
+                         if (isSeedUser) {
+                             logStatus(`Seed user ${username} not found. Forcing self-healing check...`);
+                             await ensureMandatoryTestUsersExist();
+                             docSnap = await getDoc(userRef); 
+                             
+                             if (!docSnap.exists()) {
+                                 errorEl.textContent = "User not found. Try again in a moment, or check credentials.";
+                                 errorEl.classList.remove('hidden');
+                                 return;
+                             }
+                         } else {
+                             errorEl.textContent = "User not found in the database. Please check username or sign up.";
+                             errorEl.classList.remove('hidden');
+                             return;
+                         }
+                    }
+                    
+                    const userToLogin = { id: docSnap.id, ...docSnap.data() };
 
-    const data = { uid, username, pin, role, class: sclass, school, status:'Pending', score:0, rank:0, timestamp: Date.now() };
-    await setDoc(ref, data);
-    toast('info','Submitted','Signup submitted — awaiting admin approval',2500);
-    render('login');
-  };
-}
+                    if (userToLogin.pin === pin && userToLogin.role === role) {
+                        if (userToLogin.status === 'Approved') {
+                            currentUser = userToLogin; 
+                            document.getElementById('footer-user-id').textContent = currentUser.id;
+                            
+                            showMessage('success', 'Success!', `Logging in as ${currentUser.role}...`);
+                            redirectToDashboard(currentUser.role);
+                        } else if (userToLogin.status === 'Pending') {
+                            errorEl.textContent = "Your account is pending Admin approval. Please wait.";
+                            errorEl.classList.remove('hidden');
+                        } else {
+                            errorEl.textContent = "Your account has been rejected or is inactive.";
+                            errorEl.classList.remove('hidden');
+                        }
+                    } else {
+                        errorEl.textContent = "Invalid PIN or Role combination.";
+                        errorEl.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    logStatus(`Login failed during getDoc: ${error.message}`, true);
+                    errorEl.textContent = "An error occurred during login. Please check the console.";
+                    errorEl.classList.remove('hidden');
+                }
+            });
+        }
+        
+        function renderSignup() {
+            const schoolOptions = schools.map(s => `<option value="${s}">${s}</option>`).join('');
+            const classOptions = Array.from({length: 8}, (_, i) => `<option value="${i + 1}">Class ${i + 1}</option>`).join('');
 
-/* -------------------------
-   Leaderboard
-   ------------------------- */
-function renderLeaderboard(){
-  // sort users by score desc
-  const sorted = [...users].filter(u=>u.status==='Approved').sort((a,b)=> (b.score||0) - (a.score||0));
-  return `
-    <div class="portal-card p-4">
-      <h2 class="text-xl font-bold text-yellow-300">Leaderboard</h2>
-      <ol class="mt-4 space-y-2">
-        ${sorted.slice(0,20).map((u,i)=>`<li class="p-2 rounded ${i===0? 'bg-yellow-300 text-gray-900':''}">${i+1}. ${u.username} — ${u.score||0} pts</li>`).join('')}
-      </ol>
-    </div>
-  `;
-}
+            return `
+                <div class="max-w-md mx-auto p-8 portal-card">
+                    <h2 class="text-4xl font-black text-cyan-300 mb-6 text-center">👋 Join the Fun!</h2>
+                    <form id="signup-form">
+                        <div class="mb-4">
+                            <label for="signup-role" class="block text-lg font-medium text-pink-300 mb-1">I am a...</label>
+                            <select id="signup-role" name="role" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white focus:ring-cyan-500 transition duration-150 text-lg">
+                                <option value="" disabled selected>Select My Role</option>
+                                <option value="Teacher">Super Guide (Teacher)</option>
+                                <option value="Student">Star Player (Student)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="class-dropdown-container" class="mb-4 hidden">
+                            <label for="signup-class" class="block text-lg font-medium text-pink-300 mb-1">My Class Number</label>
+                            <select id="signup-class" name="class" class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white focus:ring-cyan-500 transition duration-150 text-lg">
+                                <option value="" disabled selected>Select My Class...</option>
+                                ${classOptions}
+                            </select>
+                        </div>
 
-/* -------------------------
-   Admin Dashboard (Approve/Reject, post notifications, create assignment)
-   ------------------------- */
-function renderAdminDashboard(){
-  if (!currentUser || currentUser.role!=='Admin') return render('homepage');
-  const pending = users.filter(u=>u.status==='Pending');
+                        <div class="mb-4">
+                            <label for="signup-school" class="block text-lg font-medium text-pink-300 mb-1">My School</label>
+                            <select id="signup-school" name="school" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white focus:ring-cyan-500 transition duration-150 text-lg">
+                                <option value="" disabled selected>Select School...</option>
+                                ${schoolOptions}
+                            </select>
+                        </div>
 
-  return `
-    <div class="space-y-6">
-      <div class="flex justify-between items-center">
-        <h2 class="text-2xl font-bold text-red-400">Admin Dashboard</h2>
-        <div>
-          <button class="portal-btn bg-gray-700 text-white px-3 py-1 rounded mr-2" onclick="render('homepage')">Home</button>
-          <button class="portal-btn bg-red-600 text-white px-3 py-1 rounded" onclick="handleLogout()">Logout</button>
-        </div>
-      </div>
+                        <div class="mb-4">
+                            <label for="signup-username" class="block text-lg font-medium text-pink-300 mb-1">Your Fun ID/Email</label>
+                            <input type="text" id="signup-username" name="username" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white focus:ring-cyan-500 transition duration-150 text-lg">
+                        </div>
+                        <div class="mb-6">
+                            <label for="signup-pin" class="block text-lg font-medium text-pink-300 mb-1">Create Secret PIN (4 digits)</label>
+                            <input type="password" id="signup-pin" name="pin" required minlength="4" maxlength="4" class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white focus:ring-cyan-500 transition duration-150 text-lg">
+                        </div>
 
-      <div class="grid md:grid-cols-2 gap-6">
-        <div class="portal-card p-4">
-          <h3 class="text-lg font-semibold text-yellow-300">Pending Signups (${pending.length})</h3>
-          <ul class="mt-3 space-y-2">
-            ${pending.map(u=>`<li class="flex justify-between items-center p-2 border rounded"><div><strong>${u.username}</strong><div class="small-muted">${u.role} • ${u.school} • ${u.class||'N/A'}</div></div><div><button onclick="handleUserApproval('${u.uid}','Approved')" class="bg-green-600 text-white px-3 py-1 rounded mr-2">Approve</button><button onclick="handleUserApproval('${u.uid}','Rejected')" class="bg-red-600 text-white px-3 py-1 rounded">Reject</button></div></li>`).join('')}
-          </ul>
-        </div>
+                        <p id="signup-error" class="text-red-400 text-md font-bold mb-4 hidden"></p>
+                        <button type="submit" class="portal-btn w-full bg-pink-500 hover:bg-pink-600 text-white font-black py-3 rounded-xl shadow-md transition duration-200 text-xl">
+                            <span class="mr-2">🎉</span> Sign Me Up!
+                        </button>
+                    </form>
+                    <p class="text-center text-md mt-6">
+                        <span class="text-gray-400">Already a member?</span>
+                        <button onclick="renderView('login')" class="text-purple-400 hover:text-purple-300 ml-1 font-bold">Go to Login</button>
+                    </p>
+                </div>
+            `;
+        }
 
-        <div class="portal-card p-4">
-          <h3 class="text-lg font-semibold text-blue-300">Post Notification</h3>
-          <form id="form-post-notify" class="mt-3 space-y-2">
-            <input name="msg" placeholder="Message..." class="input" required />
-            <button class="bg-blue-500 text-white py-2 rounded w-full">Post</button>
-          </form>
+        function setupSignupEvents() {
+            const roleEl = document.getElementById('signup-role');
+            const classContainer = document.getElementById('class-dropdown-container');
+            const classEl = document.getElementById('signup-class');
+            
+            roleEl.addEventListener('change', () => {
+                if (roleEl.value === 'Student') {
+                    classContainer.classList.remove('hidden');
+                    classEl.required = true;
+                } else {
+                    classContainer.classList.add('hidden');
+                    classEl.required = false;
+                }
+            });
 
-          <h3 class="text-lg font-semibold text-blue-300 mt-4">Create Assignment</h3>
-          <form id="form-create-assignment" class="mt-3 space-y-2">
-            <input id="assign-title" placeholder="Title" class="input" required />
-            <textarea id="assign-desc" placeholder="Description" class="input"></textarea>
-            <button class="bg-green-500 text-white py-2 rounded w-full">Create Assignment</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  `;
-}
+            document.getElementById('signup-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                
+                const signupUsername = form.username.value.trim();
+                const uid = signupUsername.replace(/[^a-zA-Z0-9]/g, '_'); 
 
-/* -------------------------
-   Setup admin events
-   ------------------------- */
-function setupAdmin() {
-  const notifyForm = document.getElementById('form-post-notify');
-  if (notifyForm) {
-    notifyForm.onsubmit = async (e) => {
-      e.preventDefault();
-      const msg = e.target.msg.value.trim();
-      if (!msg) return;
-      await addDoc(collection(db, baseDataPath('notifications')), { message: msg, timestamp: Date.now() });
-      toast('success','Posted','Notification posted');
-      e.target.reset();
-    };
-  }
+                const data = {
+                    role: form.role.value,
+                    class: form.role.value === 'Student' ? form.class.value : null,
+                    school: form.school.value,
+                    username: signupUsername,
+                    pin: form.pin.value.trim(),
+                    status: 'Pending',
+                    uid: uid,
+                    score: 0, // Initial coin count
+                    rank: 0,
+                    timestamp: Date.now()
+                };
+                const errorEl = document.getElementById('signup-error');
+                errorEl.classList.add('hidden');
 
-  const assignForm = document.getElementById('form-create-assignment');
-  if (assignForm){
-    assignForm.onsubmit = async (e)=>{
-      e.preventDefault();
-      const title = document.getElementById('assign-title').value.trim();
-      const desc = document.getElementById('assign-desc').value.trim();
-      if (!title) return toast('error','Error','Title required');
-      await addDoc(collection(db, baseDataPath('assignments')), { title, description: desc, timestamp: Date.now() });
-      toast('success','Created','Assignment created');
-      e.target.reset();
-    };
-  }
-}
+                if (!/^\d{4}$/.test(data.pin)) {
+                    errorEl.textContent = "PIN must be exactly 4 digits.";
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
 
-/* -------------------------
-   Teacher Dashboard (create assignments + view students)
-   ------------------------- */
-function renderTeacherDashboard(){
-  if (!currentUser || currentUser.role!=='Teacher') return render('homepage');
-  const students = users.filter(u=>u.role==='Student' && u.school === currentUser.school);
-  return `
-    <div class="space-y-6">
-      <div class="flex justify-between items-center">
-        <h2 class="text-2xl font-bold text-blue-300">Teacher Dashboard</h2>
-        <div>
-          <button class="portal-btn bg-gray-700 text-white px-3 py-1 rounded mr-2" onclick="render('homepage')">Home</button>
-          <button class="portal-btn bg-red-600 text-white px-3 py-1 rounded" onclick="handleLogout()">Logout</button>
-        </div>
-      </div>
+                const existingUserRef = doc(db, `artifacts/${appId}/public/data/users`, uid);
+                const existingDoc = await getDoc(existingUserRef);
 
-      <div class="grid md:grid-cols-2 gap-6">
-        <div class="portal-card p-4">
-          <h3 class="text-lg font-semibold text-yellow-300">Create Assignment</h3>
-          <form id="teacher-create-assign" class="mt-3 space-y-2">
-            <input id="t-assign-title" placeholder="Title" class="input" required />
-            <textarea id="t-assign-desc" placeholder="Description" class="input"></textarea>
-            <button class="bg-green-500 text-white py-2 rounded w-full">Create</button>
-          </form>
-        </div>
+                if (existingDoc.exists()) {
+                    errorEl.textContent = "Username already exists. Please login or use a different ID.";
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+                
+                try {
+                    await setDoc(doc(db, `artifacts/${appId}/public/data/users`, uid), data);
+                    showMessage('success', 'Success!', 'Signup request submitted. Awaiting Admin approval.');
+                    renderView('login'); 
+                } catch (error) {
+                    logStatus(`Signup failed: ${error.message}`, true);
+                    errorEl.textContent = `Signup failed: ${error.message}`;
+                    errorEl.classList.remove('hidden');
+                }
+            });
+        }
 
-        <div class="portal-card p-4">
-          <h3 class="text-lg font-semibold text-blue-300">My Students (${students.length})</h3>
-          <ul class="mt-3 space-y-2">${students.map(s=>`<li class="p-2 border rounded">${s.username} • Score: ${s.score||0}</li>`).join('')}</ul>
-        </div>
-      </div>
-    </div>
-  `;
-}
+        function renderAdminDashboard() {
+            if (!currentUser || currentUser.role !== 'Admin') return renderUnauthorized();
 
-function setupTeacher(){
-  const form = document.getElementById('teacher-create-assign');
-  if (!form) return;
-  form.onsubmit = async (e)=>{
-    e.preventDefault();
-    const title = document.getElementById('t-assign-title').value.trim();
-    const desc = document.getElementById('t-assign-desc').value.trim();
-    if (!title) return toast('error','Error','Title required');
-    await addDoc(collection(db, baseDataPath('assignments')), { title, description: desc, createdBy: currentUser.uid || currentUser.username, timestamp: Date.now() });
-    toast('success','Created','Assignment created');
-    e.target.reset();
-  };
-}
+            const pendingUsers = users.filter(u => u.status === 'Pending');
 
-/* -------------------------
-   Student Dashboard (view assignments)
-   ------------------------- */
-function renderStudentDashboard(){
-  if (!currentUser || currentUser.role!=='Student') return render('homepage');
-  const myAssignments = assignments.slice().sort((a,b)=>b.timestamp - a.timestamp);
-  return `
-    <div class="space-y-4">
-      <div class="flex justify-between items-center">
-        <h2 class="text-2xl font-bold text-green-300">Student Dashboard</h2>
-        <div>
-          <button class="portal-btn bg-gray-700 text-white px-3 py-1 rounded mr-2" onclick="render('homepage')">Home</button>
-          <button class="portal-btn bg-red-600 text-white px-3 py-1 rounded" onclick="handleLogout()">Logout</button>
-        </div>
-      </div>
+            const pendingList = pendingUsers.length > 0 ? pendingUsers.map(user => `
+                <li class="flex justify-between items-center p-3 border-b border-gray-700">
+                    <div>
+                        <p class="font-bold text-white text-lg">${user.username} (${user.role})</p>
+                        <p class="text-sm text-gray-400">${user.school} - ${user.class ? 'Class ' + user.class : 'N/A'}</p>
+                    </div>
+                    <div>
+                        <button onclick="handleUserApproval('${user.uid}', 'Approved')" class="bg-green-600 hover:bg-green-700 text-white text-sm py-1 px-3 rounded-full mr-2 portal-btn">✅ Approve</button>
+                        <button onclick="handleUserApproval('${user.uid}', 'Rejected')" class="bg-red-600 hover:bg-red-700 text-white text-sm py-1 px-3 rounded-full portal-btn">❌ Reject</button>
+                    </div>
+                </li>
+            `).join('') : '<p class="text-center text-gray-500 p-4">No pending signup requests. All clear! ✨</p>';
 
-      <div class="portal-card p-4">
-        <h3 class="text-lg font-semibold text-yellow-300">Assignments</h3>
-        <ul class="mt-3 space-y-2">
-          ${myAssignments.length ? myAssignments.map(a=>`<li class="p-3 border rounded"><strong>${a.title}</strong><div class="small-muted">${a.description||''}</div></li>`).join('') : '<li class="small-muted p-3">No assignments yet.</li>'}
-        </ul>
-      </div>
-    </div>
-  `;
-}
+            return `
+                <div class="space-y-8">
+                    <h2 class="text-4xl font-black text-red-400 text-center flex items-center justify-center"><span class="mr-3">👑</span> Admin Control Center</h2>
+                    <p class="text-center text-gray-400">Welcome, Head Boss ${currentUser.username}! User UID: ${currentUser.uid}</p>
+                    
+                    <button onclick="handleLogout()" class="portal-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl float-right">🚪 Logout</button>
 
-/* -------------------------
-   Auth helpers: logout
-   ------------------------- */
-function handleLogout(){
-  // For this example, we just unset currentUser and show homepage. For production, call signOut(auth)
-  currentUser = null;
-  toast('info','Logged out','You have been logged out.');
-  render('homepage');
-}
+                    <!-- Admin: Approve/Reject Signups -->
+                    <div class="portal-card p-6">
+                        <h3 class="text-2xl font-bold text-pink-300 mb-4">New Friends Waiting (${pendingUsers.length})</h3>
+                        <ul class="divide-y divide-gray-700/50">
+                            ${pendingList}
+                        </ul>
+                    </div>
 
-/* -------------------------
-   Admin actions: approve/reject
-   ------------------------- */
-async function handleUserApproval(uid, status) {
-  try {
-    const ref = doc(db, baseDataPath('users'), uid);
-    await updateDoc(ref, { status });
-    toast('success','Success',`User ${status}`);
-  } catch (e) {
-    toast('error','Error', e.message);
-  }
-}
+                    <!-- Admin: Add Schools & Post Notifications -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="portal-card p-4">
+                            <h3 class="text-xl font-bold text-cyan-300 mb-4">Post Fun News!</h3>
+                            <form id="post-notification-form">
+                                <input type="text" name="message" placeholder="New Scrolling Message" required class="portal-input w-full p-2 rounded-xl bg-gray-700/50 text-white mb-2">
+                                <button type="submit" class="portal-btn w-full bg-cyan-500 hover:bg-cyan-600 text-white py-2 rounded-xl">📢 Post Now!</button>
+                            </form>
+                        </div>
+                         <!-- School Management (Placeholder for complexity) -->
+                        <div class="portal-card p-4">
+                            <h3 class="text-xl font-bold text-yellow-300 mb-4">School & Class Settings</h3>
+                            <p class="text-sm text-gray-400">Managing school lists and classes is currently done via code. This panel is for future feature expansion.</p>
+                            <button class="portal-btn w-full bg-gray-500 text-white py-2 rounded-xl mt-2 cursor-not-allowed" disabled>Manage Settings</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
-/* -------------------------
-   Utilities: update notification ticker
-   ------------------------- */
-function updateTicker(){
-  const el = document.getElementById('notification-ticker');
-  if (!el) return;
-  el.innerHTML = notifications.slice(0,6).map(n=>n.message).join(' &nbsp;&nbsp; | &nbsp;&nbsp; ');
-}
+        function setupAdminEvents() {
+            document.getElementById('post-notification-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const message = e.target.message.value.trim();
+                if (message) {
+                    try {
+                        await addDoc(collection(db, `artifacts/${appId}/public/data/notifications`), {
+                            message: message,
+                            timestamp: Date.now()
+                        });
+                        showMessage('success', 'Posted!', 'Notification updated successfully.');
+                        e.target.reset();
+                    } catch (error) {
+                        logStatus(`Failed to post notification: ${error.message}`, true);
+                        showMessage('error', 'Error!', 'Failed to post notification.');
+                    }
+                }
+            });
+        }
 
-/* -------------------------
-   On render hook: attach event handlers after HTML mounts
-   ------------------------- */
-function attachViewHooks() {
-  // Common: if login view present
-  if (document.getElementById('form-login')) setupLogin();
-  if (document.getElementById('form-signup')) setupSignup();
-  if (document.getElementById('form-post-notify') || document.getElementById('form-create-assignment')) setupAdmin();
-  if (document.getElementById('teacher-create-assign')) setupTeacher();
-}
+        async function handleUserApproval(uid, status) {
+            try {
+                const userRef = doc(db, `artifacts/${appId}/public/data/users`, uid);
+                await updateDoc(userRef, { status: status });
+                showMessage('info', 'Status Updated', `User status set to ${status}.`);
+            } catch (error) {
+                logStatus(`Failed to update user status: ${error.message}`, true);
+                showMessage('error', 'Error!', `Failed to update status.`);
+            }
+        }
+        
+        function renderTeacherDashboard() {
+            if (!currentUser || currentUser.role !== 'Teacher') return renderUnauthorized();
+            
+            const assignedClass = currentUser.class; 
+            const classAssignments = assignedClass 
+                ? assignments.filter(a => a.class == assignedClass)
+                : assignments;
+            
+            const assignmentsList = classAssignments.length > 0 ? classAssignments.map(a => `
+                <div class="portal-card p-4 mb-3 border border-pink-400/50">
+                    <h4 class="font-bold text-xl text-yellow-300">📝 ${a.title} (Class ${a.class})</h4>
+                    <p class="text-sm text-gray-400 mb-2">Subject: ${a.subject}</p>
+                    <p class="text-sm text-cyan-300">Due: ${new Date(a.dueDate).toLocaleDateString()}</p>
+                    <button class="bg-purple-600 hover:bg-purple-700 text-white text-xs py-1 px-3 rounded-full mt-2 portal-btn">📚 View Submissions</button>
+                </div>
+            `).join('') : '<p class="text-center text-gray-500 p-4">No assignments uploaded yet. Create one!</p>';
 
-/* -------------------------
-   Observe DOM mutations to attach events after mount
-   ------------------------- */
-const observer = new MutationObserver(()=> attachViewHooks());
-observer.observe(document.getElementById('content-view'), { childList:true, subtree:true });
+            const classOptions = Array.from({length: 8}, (_, i) => `<option value="${i + 1}">Class ${i + 1}</option>`).join('');
 
-/* -------------------------
-   Initial call
-   ------------------------- */
-init();
+            return `
+                <div class="space-y-8">
+                    <h2 class="text-4xl font-black text-cyan-400 text-center flex items-center justify-center"><span class="mr-3">👨‍🏫</span> Teacher Guide Zone</h2>
+                    <p class="text-center text-gray-400">Welcome, Super Guide ${currentUser.username}!</p>
+                    
+                    <button onclick="handleLogout()" class="portal-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl float-right">🚪 Logout</button>
 
-/* Expose some functions to global (for inline onclicks)
-   Note: in a module scope they won't be global by default, so attach needed ones:
-*/
-window.render = render;
-window.handleLogout = handleLogout;
-window.handleUserApproval = handleUserApproval;
-window.currentUser = () => currentUser;
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Upload Assignment -->
+                        <div class="portal-card p-6">
+                            <h3 class="text-2xl font-bold text-pink-300 mb-4">Publish New Worksheet</h3>
+                            <form id="upload-assignment-form">
+                                <input type="text" name="title" placeholder="Assignment Title" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-3">
+                                <select name="class" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-3">
+                                    <option value="" disabled selected>Select Target Class</option>
+                                    ${classOptions}
+                                </select>
+                                <input type="text" name="subject" placeholder="Subject (e.g., Math)" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-3">
+                                <label class="text-sm font-medium text-gray-400">Due Date</label>
+                                <input type="date" name="dueDate" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-4">
+                                <button type="submit" class="portal-btn w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl text-lg">Send Assignment</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Create MCQ Section -->
+                        <div class="portal-card p-6">
+                            <h3 class="text-2xl font-bold text-yellow-300 mb-4">Create Fun Quiz (MCQ)</h3>
+                            <form id="post-mcq-form">
+                                <textarea name="question" placeholder="Enter Question Text" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-3" rows="2"></textarea>
+                                <select name="class" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-3">
+                                    <option value="" disabled selected>Target Class for Quiz</option>
+                                    ${classOptions}
+                                </select>
+                                <input type="text" name="optionA" placeholder="Option A" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-2">
+                                <input type="text" name="optionB" placeholder="Option B" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-2">
+                                <input type="text" name="optionC" placeholder="Option C" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-2">
+                                <input type="text" name="optionD" placeholder="Option D" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-3">
+                                <select name="correctIndex" required class="portal-input w-full p-3 rounded-xl bg-gray-700/50 text-white mb-4">
+                                    <option value="" disabled selected>Select the ONE Right Answer</option>
+                                    <option value="0">Option A</option>
+                                    <option value="1">Option B</option>
+                                    <option value="2">Option C</option>
+                                    <option value="3">Option D</option>
+                                </select>
+                                <button type="submit" class="portal-btn w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl text-lg">➕ Publish Quiz</button>
+                            </form>
+                        </div>
+                    </div>
 
-</script>
+                    <!-- Assignments List -->
+                    <div class="portal-card p-4">
+                        <h3 class="text-2xl font-bold text-pink-300 mb-4">Your Uploaded Worksheets</h3>
+                        <div class="max-h-60 overflow-y-auto">
+                            ${assignmentsList}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function setupTeacherEvents() {
+             document.getElementById('upload-assignment-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const assignmentData = {
+                    title: form.title.value.trim(),
+                    class: form.class.value,
+                    subject: form.subject.value.trim(),
+                    dueDate: new Date(form.dueDate.value).getTime(),
+                    uploader: currentUser.username,
+                    type: 'Text/PDF Link',
+                    timestamp: Date.now()
+                };
+                
+                try {
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/assignments`), assignmentData);
+                    showMessage('success', 'Assignment Uploaded!', `Assignment for Class ${assignmentData.class} is live.`);
+                    form.reset();
+                } catch (error) {
+                    logStatus(`Assignment upload failed: ${error.message}`, true);
+                    showMessage('error', 'Error!', 'Failed to upload assignment.');
+                }
+            });
 
+            document.getElementById('post-mcq-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const mcqData = {
+                    class: form.class.value,
+                    question: form.question.value.trim(),
+                    options: [
+                        form.optionA.value.trim(),
+                        form.optionB.value.trim(),
+                        form.optionC.value.trim(),
+                        form.optionD.value.trim()
+                    ],
+                    correctIndex: parseInt(form.correctIndex.value, 10),
+                    uploader: currentUser.username,
+                    timestamp: Date.now()
+                };
+
+                // Simple check to ensure all options are filled
+                if (mcqData.options.some(opt => opt === "")) {
+                    showMessage('error', 'Missing Data', 'Please fill all four options.');
+                    return;
+                }
+
+                try {
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/mcqs`), mcqData);
+                    showMessage('success', 'MCQ Published!', `New Quiz for Class ${mcqData.class} is now available.`);
+                    form.reset();
+                } catch (error) {
+                    logStatus(`MCQ publish failed: ${error.message}`, true);
+                    showMessage('error', 'Error!', 'Failed to publish MCQ.');
+                }
+            });
+        }
+
+
+        function startQuiz() {
+            if (!currentUser || currentUser.role !== 'Student' || !currentUser.class) {
+                showMessage('error', 'Error', 'Cannot start quiz. Student role or class is missing.');
+                return;
+            }
+            
+            // 1. Filter MCQs for the student's class
+            const studentClass = currentUser.class;
+            const myClassMcqs = mcqs.filter(q => q.class == studentClass);
+
+            if (myClassMcqs.length === 0) {
+                 showMessage('info', 'No Quiz', `No fun quizzes available for Class ${studentClass} yet. Check back soon!`);
+                 return;
+            }
+
+            // 2. Initialize or reset quiz state
+            currentQuizState.myClassMcqs = myClassMcqs;
+            currentQuizState.currentIndex = 0;
+            currentQuizState.correctCount = 0;
+            currentQuizState.feedback = null;
+            
+            // 3. Render the quiz view
+            renderView('mcqAttempt');
+        }
+
+        function getTrophy(coins) {
+            if (coins >= 7500) return { name: 'Gold Trophy', icon: '🏆', color: 'text-yellow-500' };
+            if (coins >= 5000) return { name: 'Silver Trophy', icon: '🥈', color: 'text-gray-400' };
+            if (coins >= 2500) return { name: 'Bronze Trophy', icon: '🥉', color: 'text-amber-700' };
+            return { name: 'No Trophy Yet', icon: '✨', color: 'text-cyan-400' };
+        }
+
+        function renderStudentDashboard() {
+            if (!currentUser || currentUser.role !== 'Student') return renderUnauthorized();
+            
+            const studentClass = currentUser.class;
+            const myAssignments = assignments.filter(a => a.class == studentClass);
+            const myMcqs = mcqs.filter(q => q.class == studentClass);
+            const studentCoins = currentUser.score || 0;
+            const trophy = getTrophy(studentCoins);
+
+            const assignmentList = myAssignments.length > 0 ? myAssignments.map(a => `
+                <div class="portal-card p-3 mb-2 border border-pink-400/50">
+                    <h4 class="font-bold text-xl text-cyan-300">📝 ${a.title} (Subject: ${a.subject})</h4>
+                    <p class="text-sm text-gray-400">Due: ${new Date(a.dueDate).toLocaleDateString()}</p>
+                    <div class="mt-2 space-x-2">
+                        <button class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 text-xs py-1 px-3 rounded-full portal-btn">⬇️ Get Worksheet</button>
+                        <button class="bg-purple-500 hover:bg-purple-600 text-white text-xs py-1 px-3 rounded-full portal-btn">📤 Submit Answer</button>
+                    </div>
+                </div>
+            `).join('') : '<p class="text-center text-gray-500 p-4">No assignments for your class yet. Time to play quizzes!</p>';
+
+
+            return `
+                <div class="space-y-8">
+                    <h2 class="text-4xl font-black text-pink-400 text-center flex items-center justify-center">
+                        <span class="mr-3">🚀</span> Student Fun Zone! (Class ${studentClass})
+                    </h2>
+                    
+                    <button onclick="handleLogout()" class="portal-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl float-right">🚪 Logout</button>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- My Assignments -->
+                        <div class="portal-card p-6">
+                            <h3 class="text-2xl font-bold text-cyan-300 mb-4 flex items-center"><span class="mr-2">📚</span> My Winter Worksheets</h3>
+                            <div class="max-h-80 overflow-y-auto">
+                                ${assignmentList}
+                            </div>
+                        </div>
+                        
+                        <!-- Quiz / Leaderboard -->
+                        <div class="portal-card p-6">
+                            <h3 class="text-2xl font-bold text-yellow-300 mb-4 flex items-center"><span class="mr-2">🕹️</span> Coins & Trophies</h3>
+                            
+                            <button onclick="startQuiz()" class="portal-btn w-full bg-purple-500 hover:bg-purple-600 text-white py-3 rounded-xl mb-4 text-xl font-bold">
+                                <span class="mr-2">🧠</span> Attempt Online Quiz (${myMcqs.length} Qs)
+                            </button>
+
+                            <div class="text-center p-4 border-4 border-dashed border-cyan-500/50 rounded-xl mb-4 bg-gray-800/30">
+                                <p class="text-gray-300 text-lg font-semibold">Your Coins:</p>
+                                <p class="text-6xl font-extrabold text-yellow-300 mb-4 flex items-center justify-center">
+                                    <span class="mr-3">💰</span> ${studentCoins}
+                                </p>
+                                
+                                <p class="text-gray-300 text-lg font-semibold mb-2">Current Trophy:</p>
+                                <div class="flex items-center justify-center">
+                                    <span class="text-4xl mr-3">${trophy.icon}</span>
+                                    <span class="text-3xl font-extrabold ${trophy.color}">${trophy.name}</span>
+                                </div>
+                            </div>
+
+                            <button onclick="renderView('leaderboard')" class="portal-btn w-full bg-cyan-500 hover:bg-cyan-600 text-gray-900 font-bold py-3 rounded-xl text-xl">
+                                <span class="mr-2">🏅</span> View Champions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function setupStudentEvents() {
+            // Placeholder for student-specific events
+        }
+        
+        // --- MCQ Attempt View ---
+        function renderMcqAttempt() {
+            const state = currentQuizState;
+            const totalQuestions = state.myClassMcqs.length;
+            const currentQuestion = state.myClassMcqs[state.currentIndex];
+            
+            if (!currentQuestion) {
+                // Quiz finished view
+                const finalTrophy = getTrophy(currentUser.score || 0);
+                return `
+                    <div class="text-center p-8">
+                        <h2 class="text-4xl font-extrabold text-pink-400 mb-4">🎉 Quiz Finished!</h2>
+                        <p class="text-2xl text-gray-300 mb-6">You answered ${state.correctCount} out of ${totalQuestions} questions correctly.</p>
+                        <p class="text-xl text-yellow-300 mb-4">Total Coins: ${currentUser.score || 0}</p>
+                        <p class="text-xl text-cyan-300 mb-8">Your Trophy: ${finalTrophy.icon} ${finalTrophy.name}</p>
+                        <button onclick="renderView('student')" class="portal-btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-xl text-xl">Go Back to Fun Zone</button>
+                    </div>
+                `;
+            }
+
+            const feedbackHtml = state.feedback ? `
+                <div class="p-4 my-4 rounded-xl font-black text-center text-xl ${state.feedback.type === 'correct' ? 'bg-green-600' : 'bg-red-600'}">
+                    ${state.feedback.message}
+                </div>
+            ` : '';
+
+            const optionsHtml = currentQuestion.options.map((option, index) => `
+                <button 
+                    class="mcq-option portal-btn w-full text-left p-4 my-3 rounded-xl border-2 border-pink-400 bg-gray-700/50 hover:bg-gray-600/70 transition duration-150 text-lg"
+                    data-index="${index}"
+                    ${state.feedback ? 'disabled' : ''}
+                >
+                    ${String.fromCharCode(65 + index)}. ${option}
+                </button>
+            `).join('');
+
+            return `
+                <div class="max-w-xl mx-auto space-y-6 p-4">
+                    <h3 class="text-3xl font-black text-yellow-300">Question ${state.currentIndex + 1} of ${totalQuestions}</h3>
+                    
+                    <div class="portal-card p-6 bg-gray-800/50">
+                        <p class="text-2xl font-bold text-white mb-6">${currentQuestion.question}</p>
+                        <div id="options-container">
+                            ${optionsHtml}
+                        </div>
+                    </div>
+
+                    ${feedbackHtml}
+
+                    <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                        <p class="text-lg text-cyan-400 font-bold">Correct Answers: ${state.correctCount}</p>
+                        ${state.feedback ? `
+                            <button onclick="handleNextQuestion()" class="portal-btn bg-pink-500 hover:bg-pink-600 text-white font-black py-3 px-6 rounded-xl text-xl">
+                                ${state.currentIndex + 1 === totalQuestions ? 'Finish Quiz' : 'Next Question ➡️'}
+                            </button>
+                        ` : `
+                            <p class="text-lg text-gray-400">Choose your answer to continue...</p>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        function setupMcqEvents() {
+            document.getElementById('options-container')?.addEventListener('click', (e) => {
+                const button = e.target.closest('.mcq-option');
+                if (button && !currentQuizState.feedback) {
+                    const selectedIndex = parseInt(button.dataset.index, 10);
+                    handleAnswerSelection(selectedIndex, button);
+                }
+            });
+        }
+
+        async function handleAnswerSelection(selectedIndex, button) {
+            const currentQuestion = currentQuizState.myClassMcqs[currentQuizState.currentIndex];
+            const isCorrect = selectedIndex === currentQuestion.correctIndex;
+
+            // Highlight buttons
+            document.querySelectorAll('.mcq-option').forEach((btn, index) => {
+                btn.disabled = true;
+                btn.classList.remove('bg-gray-700/50', 'hover:bg-gray-600/70', 'border-pink-400');
+                if (index === currentQuestion.correctIndex) {
+                    btn.classList.add('bg-green-700', 'border-green-400'); // Correct answer
+                } else if (index === selectedIndex) {
+                    btn.classList.add('bg-red-700', 'border-red-400'); // Wrong selection
+                } else {
+                    btn.classList.add('opacity-50', 'bg-gray-800/50');
+                }
+            });
+
+            // Update state and provide feedback
+            if (isCorrect) {
+                currentQuizState.correctCount += 1;
+                
+                // --- NEW GAMIFICATION LOGIC: ADD 5 COINS ---
+                const coinReward = 5;
+                const newCoins = (currentUser.score || 0) + coinReward;
+                const userRef = doc(db, `artifacts/${appId}/public/data/users`, currentUser.uid);
+                await updateDoc(userRef, { score: newCoins });
+                // onSnapshot listener handles the update of currentUser object
+                // --- END NEW GAMIFICATION LOGIC ---
+
+                currentQuizState.feedback = {
+                    type: 'correct',
+                    message: `Wow! You are doing wonders. +${coinReward} Coins! 🌟`
+                };
+            } else {
+                currentQuizState.feedback = {
+                    type: 'incorrect',
+                    message: "No problem. Better luck next time. You can do it! 💪"
+                };
+            }
+            
+            // Re-render the view to show feedback and next button
+            renderView('mcqAttempt');
+        }
+
+        function handleNextQuestion() {
+            currentQuizState.feedback = null;
+            currentQuizState.currentIndex += 1;
+
+            if (currentQuizState.currentIndex < currentQuizState.myClassMcqs.length) {
+                renderView('mcqAttempt');
+            } else {
+                renderView('mcqAttempt'); // Render the final screen
+            }
+        }
+
+        // --- Leaderboard Implementation ---
+
+        function renderLeaderboard() {
+            const sortedUsers = users
+                .filter(u => u.status === 'Approved' && u.role === 'Student')
+                .sort((a, b) => (b.score || 0) - (a.score || 0));
+
+            let rank = 0;
+            let lastScore = -1;
+            const rankedUsers = sortedUsers.map((user, index) => {
+                if (user.score !== lastScore) {
+                    rank = index + 1;
+                    lastScore = user.score;
+                }
+                const trophy = getTrophy(user.score || 0);
+                return { ...user, rank: rank, trophy };
+            });
+
+            const leaderboardHtml = rankedUsers.map(user => {
+                let badgeClass = 'rank-default';
+                if (user.rank === 1) badgeClass = 'rank-1';
+                else if (user.rank === 2) badgeClass = 'rank-2';
+                else if (user.rank === 3) badgeClass = 'rank-3';
+
+                return `
+                    <tr class="border-b border-gray-700/50 hover:bg-gray-700/50 transition duration-150 text-lg">
+                        <td class="p-3">
+                            <span class="inline-block w-9 h-9 rounded-full text-center align-middle font-bold text-xl leading-9 ${badgeClass}">
+                                ${user.rank}
+                            </span>
+                        </td>
+                        <td class="p-3 font-semibold text-white">${user.username}</td>
+                        <td class="p-3 text-cyan-300">Class ${user.class}</td>
+                        <td class="p-3 text-yellow-300 font-bold">${user.score || 0} 💰</td>
+                        <td class="p-3 text-white"><span class="text-2xl mr-1">${user.trophy.icon}</span> ${user.trophy.name}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <div class="space-y-6">
+                    <h2 class="text-4xl font-black text-yellow-400 text-center flex items-center justify-center"><span class="mr-3">⭐</span> Champions Leaderboard ⭐</h2>
+                    <p class="text-center text-xl text-gray-400">See who has the most Coins! (All Approved Star Players)</p>
+                    
+                    <button onclick="currentUser ? redirectToDashboard(currentUser.role) : renderView('homepage')" class="portal-btn bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-xl float-right">⬅️ Back</button>
+
+                    <div class="portal-card p-6 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700/50">
+                            <thead>
+                                <tr class="text-left text-sm font-black text-pink-400 uppercase tracking-wider">
+                                    <th class="p-3">Rank</th>
+                                    <th class="p-3">Student Name</th>
+                                    <th class="p-3">Class</th>
+                                    <th class="p-3">Coins</th>
+                                    <th class="p-3">Trophy</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700/50">
+                                ${leaderboardHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center text-md text-gray-500">Trophies: 🥉 2,500+ | 🥈 5,000+ | 🏆 7,500+ Coins.</div>
+                </div>
+            `;
+        }
+
+        // --- Utility UI/UX Functions ---
+
+        function updateNotificationTicker() {
+            const tickerEl = document.getElementById('notification-ticker');
+            if (notifications.length > 0) {
+                const messageString = notifications.map(n => n.message).join(' &nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp; ');
+                tickerEl.innerHTML = messageString + ' &nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp; ';
+                tickerEl.style.animationDuration = `${Math.max(15, notifications.length * 5)}s`;
+            }
+        }
+        
+        function handleLogout() {
+            auth.signOut().then(() => {
+                currentUser = null;
+                showMessage('info', 'Logged Out', 'You have been successfully logged out. See you soon!');
+                renderView('homepage');
+            }).catch(error => {
+                logStatus(`Logout failed: ${error.message}`, true);
+                showMessage('error', 'Logout Error', 'Failed to log out.');
+            });
+        }
+        
+        function renderUnauthorized() {
+            return `
+                <div class="text-center p-8">
+                    <h2 class="text-4xl font-black text-red-500 mb-4">🛑 Stop! Access Denied!</h2>
+                    <p class="text-xl text-gray-400 mb-6">You need permission to be here. Please log in first.</p>
+                    <button onclick="handleLogout()" class="portal-btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-xl text-xl">Go to Login</button>
+                </div>
+            `;
+        }
+
+        // --- Snowfall Effect Logic ---
+        function createSnowflake() {
+            const snowContainer = document.getElementById('snow-container');
+            const snowflake = document.createElement('div');
+            snowflake.className = 'snowflake';
+            
+            const size = Math.random() * 5 + 3;
+            const left = Math.random() * 100;
+            const duration = Math.random() * 10 + 5;
+
+            snowflake.style.width = `${size}px`;
+            snowflake.style.height = `${size}px`;
+            snowflake.style.left = `${left}vw`;
+            snowflake.style.animationDuration = `${duration}s`;
+            snowflake.style.animationDelay = `-${Math.random() * duration}s`;
+
+            snowContainer.appendChild(snowflake);
+            setTimeout(() => snowflake.remove(), duration * 1000);
+        }
+
+        function startSnowfall() {
+            setInterval(createSnowflake, 300); 
+            for (let i = 0; i < 50; i++) {
+                createSnowflake();
+            }
+        }
+        
+        // --- EXPOSE NECESSARY FUNCTIONS TO GLOBAL SCOPE FOR HTML ONCLICK ATTRIBUTES ---
+        window.renderView = renderView;
+        window.handleLogout = handleLogout;
+        window.handleUserApproval = handleUserApproval;
+        window.startQuiz = startQuiz;
+        window.handleNextQuestion = handleNextQuestion;
+
+
+        // --- APP START ---
+        window.onload = () => {
+            if (Object.keys(firebaseConfig).length > 0) {
+                 initializeData();
+                 startSnowfall();
+            } else {
+                 logStatus("Skipping Firebase initialization because config is empty or invalid.", true);
+            }
+        };
+
+    </script>
 </body>
 </html>
-    
+
+      
