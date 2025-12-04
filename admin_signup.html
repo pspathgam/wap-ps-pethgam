@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - User Signup</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e2e8f0; /* Light slate background for portal */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Admin Signup Component -->
+    <div id="admin-signup-container" class="w-full max-w-lg mx-auto bg-white rounded-xl shadow-2xl p-6 sm:p-10 transition-all duration-300">
+        
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-2 text-center">Admin Signup</h1>
+        <p class="text-gray-500 mb-8 text-center">Create a new administrative user account for the portal.</p>
+
+        <!-- Loading & Message Box -->
+        <div id="message-box" class="hidden p-3 rounded-lg text-sm mb-4" role="alert"></div>
+
+        <form id="signup-form" onsubmit="window.handleSignup(event)">
+            <!-- Email Field -->
+            <div class="mb-4">
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                <input type="email" id="email" required placeholder="admin@example.com"
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out" />
+            </div>
+
+            <!-- Password Field -->
+            <div class="mb-4">
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" id="password" required minlength="8" placeholder="Must be at least 8 characters"
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out" />
+            </div>
+
+            <!-- Admin Key Field (The Secret Master Key) -->
+            <div class="mb-6">
+                <label for="adminKey" class="block text-sm font-medium text-gray-700 mb-1">Admin Security Key</label>
+                <input type="text" id="adminKey" required placeholder="Enter SECRET-ADMIN-TOKEN-123"
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out" />
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submit-button"
+                    class="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition duration-200 ease-in-out shadow-lg shadow-blue-500/50 disabled:bg-gray-400">
+                Sign Up as Admin
+            </button>
+        </form>
+    </div>
+
+    <!-- START OF JAVASCRIPT LOGIC -->
+    <script type="module">
+        // Import necessary Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let app, db, auth; 
+        let isFirebaseInitialized = false; 
+
+        // --- Helper Functions ---
+
+        /** Hides the message box. */
+        function hideMessage() {
+            const msgBox = document.getElementById('message-box');
+            msgBox.classList.add('hidden');
+            msgBox.textContent = '';
+            msgBox.className = 'hidden p-3 rounded-lg text-sm mb-4';
+        }
+
+        /** Displays a success or error message. */
+        function showMessage(message, type = 'info') {
+            const msgBox = document.getElementById('message-box');
+            hideMessage();
+            msgBox.classList.remove('hidden');
+
+            let baseClasses = 'p-3 rounded-lg text-sm mb-4 border ';
+            if (type === 'success') {
+                msgBox.className = baseClasses + 'bg-green-100 text-green-800 border-green-300';
+            } else if (type === 'error') {
+                msgBox.className = baseClasses + 'bg-red-100 text-red-800 border-red-300';
+            } else {
+                msgBox.className = baseClasses + 'bg-blue-100 text-blue-800 border-blue-300';
+            }
+
+            msgBox.textContent = message;
+        }
+
+        /** Initializes Firebase and authenticates the user. */
+        async function initializeFirebase() {
+            if (isFirebaseInitialized) return; 
+            try {
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+                
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('debug');
+
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                isFirebaseInitialized = true;
+                console.log("Firebase initialized for Admin Signup component.");
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                showMessage("System Error: Could not initialize application services.", 'error');
+            }
+        }
+        
+        // Expose the function globally so the form can access it
+        window.handleSignup = async function(event) {
+            event.preventDefault();
+            hideMessage();
+
+            if (!isFirebaseInitialized) {
+                await initializeFirebase();
+            }
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const adminKey = document.getElementById('adminKey').value;
+            const submitButton = document.getElementById('submit-button');
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Signing Up...';
+            showMessage('Attempting to create admin user...', 'info');
+
+            try {
+                // Simulate network latency
+                await new Promise(resolve => setTimeout(resolve, 1500)); 
+
+                // --- MASTER KEY CHECK ---
+                const MASTER_KEY = 'SECRET-ADMIN-TOKEN-123'; 
+
+                if (adminKey !== MASTER_KEY) {
+                    throw new Error("Invalid or missing Admin Security Key. You must possess the master key to create an admin user.");
+                }
+
+                if (password.length < 10) {
+                    throw new Error("Password is too weak. Admin passwords must be 10 characters or longer.");
+                }
+
+                if (email.includes('test')) {
+                    throw new Error(`Account creation failed. The email '${email}' is already in use by another administrator.`);
+                }
+                
+                // Simulated Success (In a real app, successful API call would go here)
+                showMessage(`✅ Admin user created successfully for: ${email}. Redirecting...`, 'success');
+                document.getElementById('signup-form').reset();
+
+                // OPTIONAL: Redirect the user to the admin dashboard after success
+                // setTimeout(() => { window.location.href = '/admin/dashboard'; }, 2000); 
+
+            } catch (error) {
+                const errorMessage = error.message || "An unknown network error occurred during signup.";
+                showMessage(`Signup Failed: ${errorMessage}`, 'error');
+                console.error("Signup failed:", error);
+
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Sign Up as Admin';
+            }
+        }
+
+        // Initialize Firebase when the page loads
+        window.onload = initializeFirebase;
+    </script>
+</body>
+</html>
