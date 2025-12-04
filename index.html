@@ -143,574 +143,495 @@
         <p class="text-gray-600 mt-2">User ID: <span id="footer-user-id">N/A</span> | App ID: <span id="footer-app-id">N/A</span></p>
     </footer>
 
-    <!-- Firebase SDKs -->
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, setLogLevel, serverTimestamp, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    // ==============================================================================
+// 1. FIREBASE IMPORTS
+// ==============================================================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.1/firebase-app.js";
+import { getAuth, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.1.1/firebase-auth.js";
+import { getFirestore, doc, collection, onSnapshot, updateDoc, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.1.1/firebase-firestore.js";
 
-    // Global Firebase and App State
-    let app, db, auth;
-    
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-wagoora-app';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-    
-    // Application State
-    const state = {
-        isAuthReady: false,
-        user: null, // Full user data from Firestore
-        role: 'Guest', // 'Admin', 'Teacher', 'Student', 'Guest'
-        view: 'Home', // 'Home', 'Auth', 'Admin', 'Teacher', 'Student', 'Leaderboard', 'Quiz', 'Pending'
-        authMode: 'Login', // 'Login' or 'Signup'
-        data: {
-            users: [],
-            schools: [],
-            assignments: [],
-            notifications: [],
-            submissions: [],
-        },
-        currentAssignment: null,
-        quizState: {
-            currentQIndex: 0,
-            selectedOption: null,
-            score: 0,
-            coins: 0,
-        }
-    };
+// ==============================================================================
+// 2. GLOBAL CONSTANTS AND STATE (!!! CRITICAL CHECK REQUIRED HERE !!!)
+// ==============================================================================
 
-    // --- FIREBASE INITIALIZATION AND AUTHENTICATION ---
-    async function initializeFirebase() {
-        try {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            setLogLevel('error'); // Set to error to keep the console clean
+// 🛑 YOU MUST REPLACE THESE VALUES WITH YOUR ACTUAL FIREBASE PROJECT CREDENTIALS
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY", // <--- CHECK THIS LINE CAREFULLY
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID", // <--- CHECK THIS LINE CAREFULLY
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
 
-            onAuthStateChanged(auth, async (currentUser) => {
-                if (currentUser) {
-                    // FIX: Path for single user document must be specific
-                    const userRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}`);
-                    const userSnap = await getDoc(userRef);
+const appId = "zone-wagoora";
 
-                    if (userSnap.exists()) {
-                        state.user = userSnap.data();
-                        state.role = state.user.role;
-                        if (state.user.status === 'Approved') {
-                            state.view = state.role;
-                            initializeRealtimeListeners(currentUser.uid);
-                        } else {
-                            state.view = 'Pending';
-                        }
-                    } else {
-                        // User not in 'users' collection (e.g., anonymous user without signup data)
-                        state.user = null;
-                        state.role = 'Guest';
-                        state.view = 'Auth';
-                        state.authMode = 'Login';
-                    }
+const state = {
+    user: null, 
+    data: { 
+        users: [],
+        schools: [],
+        assignments: [],
+        notifications: [],
+        submissions: []
+    },
+    view: 'Home', 
+    isAuthReady: false, 
+    quizState: {
+        currentQIndex: 0,
+        score: 0,
+        coins: 0,
+        selectedOption: null,
+    },
+    currentAssignment: null, 
+};
+
+let db;
+let auth;
+
+const classes = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+const subjects = ['English', 'Mathematics', 'Science', 'Social Studies', 'Kashmiri', 'Computer Science'];
+
+
+// ==============================================================================
+// 3. FIREBASE INITIALIZATION AND AUTH LISTENERS (WITH DEBUG FIX)
+// ==============================================================================
+
+/** Initializes Firebase and sets up authentication listener. */
+function initializeFirebase() {
+    try {
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        // Auth State Listener
+        onAuthStateChanged(auth, (user) => {
+            state.isAuthReady = true; // THIS LINE CLEARS THE LOADING SCREEN
+            
+            if (user) {
+                initializeRealtimeListeners(user.uid);
+            } else {
+                state.user = null;
+                state.data.users = []; 
+                if (state.view !== 'Signup') {
+                    setView('Home');
                 } else {
-                    // Attempt to sign in anonymously if no custom token
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token !== '') {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        // This handles the initial anonymous sign-in for the session
-                        await signInAnonymously(auth); 
-                    }
-                    
-                    if (!state.user) {
-                       state.role = 'Guest';
-                       state.view = 'Home'; 
-                    }
+                    renderApp(); 
                 }
-                state.isAuthReady = true;
-                renderApp();
-            });
-        } catch (error) {
-            console.error("Firebase Initialization Failed:", error);
-            showToast("System initialization failed. Check console for details.", 'error');
-        }
-    }
-    
-    /** Generates the Firestore collection path based on privacy rules. */
-    function getPath(collectionName, isPublic = true, userId = null) {
-        if (isPublic) {
-            return `artifacts/${appId}/public/data/${collectionName}`;
-        } else {
-            // NOTE: This path is for a sub-collection 'collectionName' under the user's private data
-            const currentUserId = userId || auth.currentUser?.uid || 'anonymous';
-            return `artifacts/${appId}/users/${currentUserId}/${collectionName}`;
-        }
-    }
-
-    // --- REALTIME DATA LISTENERS ---
-
-    function initializeRealtimeListeners(userId) {
-        // Listen for changes to the user's own document (e.g., status change)
-        // FIX: The path for the single user document is hardcoded here, not using getPath as it's for collections.
-        const userRef = doc(db, `artifacts/${appId}/users/${userId}`); 
-        onSnapshot(userRef, (docSnap) => {
-            if (docSnap.exists() && docSnap.data().status === 'Approved' && state.user?.status !== 'Approved') {
-                state.user = docSnap.data();
-                state.role = state.user.role;
-                state.view = state.role;
-                showToast(`Approval received! Welcome, ${state.user.username}.`, 'success');
-                renderApp();
-            } else if (docSnap.exists()) {
-                // Update user data for score/coin changes
-                state.user = docSnap.data();
-                renderApp();
             }
         });
 
-        // Listen for public data changes
-        onSnapshot(collection(db, getPath('schools')), (snapshot) => {
-            state.data.schools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderApp();
-        });
-        onSnapshot(collection(db, getPath('assignments')), (snapshot) => {
-            state.data.assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderApp();
-        });
+    } catch (error) {
+        // 🛑 CRITICAL FIX FOR ANDROID: Display error if initialization fails
+        console.error("Firebase initialization failed:", error); 
+        state.isAuthReady = true; // Clear the loading screen to show the error
         
-        // Fix: Removed prohibited orderBy and implemented client-side sorting
-        onSnapshot(collection(db, getPath('notifications')), (snapshot) => {
-            state.data.notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Client-side sort by timestamp (descending)
-            state.data.notifications.sort((a, b) => {
-                const timeA = a.timestamp?.seconds || 0;
-                const timeB = b.timestamp?.seconds || 0;
-                return timeB - timeA;
-            });
-            renderApp();
-        });
-        
-        onSnapshot(collection(db, getPath('users')), (snapshot) => {
-            state.data.users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderApp();
-        });
-        // Leaderboard also uses the users collection data
-    }
-
-    // --- HELPER FUNCTIONS ---
-
-    function showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        let colorClass = '';
-
-        if (type === 'success') {
-            colorClass = 'bg-green-500';
-        } else if (type === 'error') {
-            colorClass = 'bg-red-500';
-        } else {
-            colorClass = 'bg-blue-500';
-        }
-
-        toast.className = `${colorClass} text-white p-3 rounded-lg shadow-xl mb-3 transform transition-all duration-300 translate-x-full opacity-0`;
-        toast.textContent = message;
-        container.appendChild(toast);
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-full', 'opacity-0');
-            toast.classList.add('translate-x-0', 'opacity-100');
-        }, 50);
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-0', 'opacity-100');
-            toast.classList.add('translate-x-full', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 5000);
-    }
-
-    /** Simple function to switch the application view */
-    function setView(newView, authMode = 'Login') {
-        state.view = newView;
-        state.authMode = authMode;
-        renderApp();
-    }
-
-    // FIX: Define the missing function for the signup form's role selector.
-    window.toggleStudentFields = function(role) {
-        const studentFields = document.getElementById('student-fields');
-        if (studentFields) {
-            studentFields.classList.toggle('hidden', role !== 'Student');
+        const content = document.getElementById('main-content');
+        if (content) {
+             content.innerHTML = `
+                <div class="p-8 text-center bg-red-100 border-4 border-red-600 rounded-xl max-w-lg mx-auto mt-12">
+                    <h2 class="text-2xl font-bold text-red-700">❌ CRITICAL ERROR ❌</h2>
+                    <p class="text-red-900 mt-2">Could not connect to Firebase services.</p>
+                    <p class="text-sm text-red-500 mt-4">This usually means the **API Key** or **Project ID** in your script is incorrect.</p>
+                </div>
+            `;
         }
     }
+}
 
-    // --- SNOWFLAKE EFFECT ---
-    function createSnowflakes() {
-        const container = document.querySelector('.snow-container');
-        if (!container) return;
-        for (let i = 0; i < 50; i++) {
-            const flake = document.createElement('div');
-            flake.className = 'snowflake';
-            flake.style.left = `${Math.random() * 100}vw`;
-            flake.style.animationDuration = `${Math.random() * 3 + 2}s`;
-            flake.style.animationDelay = `${Math.random() * 5}s`;
-            flake.style.opacity = `${Math.random()}`;
-            flake.style.width = flake.style.height = `${Math.random() * 5 + 5}px`;
-            container.appendChild(flake);
-        }
-    }
+/** Sets up real-time listeners for all necessary global and user-specific data. */
+function initializeRealtimeListeners(userId) {
+    if (!db) return;
 
-    // --- AUTHENTICATION HANDLERS ---
-    
-    /** Handles student/teacher signup */
-    window.handleSignup = async function(event) {
-        event.preventDefault();
-        const form = event.target;
-        const role = form.role.value;
-        const username = form.username.value;
-        const pin = form.pin.value;
-        const schoolId = form.school.value;
-        const classVal = role === 'Student' ? form.class.value : null;
-
-        if (!username || !pin || !role || !schoolId) {
-             showToast("Please fill all required fields.", 'error');
-             return;
-        }
-        if (role === 'Student' && !classVal) {
-             showToast("Students must select a class.", 'error');
-             return;
-        }
-        if (pin.length < 4) {
-             showToast("PIN must be at least 4 digits.", 'error');
-             return;
-        }
-
-        // Check if username/pin combo already exists
-        const existingQuery = query(collection(db, getPath('users')), where('username', '==', username), where('pin', '==', pin));
-        const existingSnapshot = await getDocs(existingQuery);
-
-        if (!existingSnapshot.empty) {
-            showToast("A user with this username and PIN already exists. Please try logging in.", 'error');
-            return;
-        }
-
-        try {
-            // 1. Create a temporary Firebase user
-            const userCredential = await signInAnonymously(auth);
-            const userId = userCredential.user.uid;
-
-            // 2. Save user details to Firestore with 'Pending' status
-            const newUser = {
-                username,
-                pin, // In a real app, PIN would be securely hashed
-                role,
-                schoolId,
-                class: classVal,
-                status: 'Pending',
-                coins: 0,
-                score: 0,
-                badges: [],
-                createdAt: serverTimestamp(),
-            };
-
-            // Set the user document under the private path: artifacts/{appId}/users/{userId}
-            await setDoc(doc(db, `artifacts/${appId}/users/${userId}`), newUser); 
-            
-            showToast("Signup successful! Waiting for Admin approval.", 'success');
-            setView('Pending');
-
-        } catch (error) {
-            console.error("Signup Failed:", error);
-            showToast("Signup failed: " + error.message, 'error');
-        }
-    }
-
-    /** Handles all role logins */
-    window.handleLogin = async function(event) {
-        event.preventDefault();
-        const form = event.target;
-        const role = form.role.value;
-        const username = form.username.value;
-        const pin = form.pin.value;
-
-        if (!username || !pin || !role) {
-             showToast("Please select role and enter username/PIN.", 'error');
-             return;
-        }
-
-        try {
-            // 1. Check for Admin Login (requires secret key)
-            if (role === 'Admin') {
-                const adminKey = form.adminKey.value;
-                const MASTER_KEY = 'WAGOORA-ADMIN-KEY-2025'; // Master key definition
-                
-                if (adminKey !== MASTER_KEY) {
-                    showToast("Invalid Admin Key.", 'error');
-                    return;
-                }
-                
-                // Since Admin is a special, single-user role, we just set the state
-                state.role = 'Admin';
-                state.view = 'Admin';
-                state.user = { role: 'Admin', username: 'PortalAdmin', status: 'Approved' };
-                // Start listeners, using current anonymous user's UID (if one exists)
-                initializeRealtimeListeners(auth.currentUser?.uid); 
-                showToast("Admin Login successful!", 'success');
-                renderApp();
-                return;
-            }
-
-            // 2. Login for Teacher/Student (check Firestore for credentials)
-            const qUser = query(collection(db, getPath('users')), where('username', '==', username), where('pin', '==', pin), where('role', '==', role));
-            const userSnap = await getDocs(qUser);
-
-            if (userSnap.empty) {
-                showToast("Login failed. Invalid credentials or incorrect role selected.", 'error');
-                return;
-            }
-
-            const userData = userSnap.docs[0].data();
-            const userId = userSnap.docs[0].id;
-            
-            if (userData.status === 'Pending') {
-                showToast("Login failed. Your account is pending Admin approval.", 'error');
+    // Listener for CURRENT USER's data
+    const userDocRef = doc(db, `artifacts/${appId}/users/${userId}`);
+    onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            state.user = { id: docSnap.id, ...docSnap.data() };
+            if (state.user.status === 'Pending') {
                 setView('Pending');
-                return;
+            } else if (state.view === 'Home' || state.view === 'Auth' || state.view === 'Pending') {
+                setView(state.user.role); 
+            } else {
+                renderApp(); 
             }
-
-            // Set state based on found user data
-            state.user = userData;
-            state.role = userData.role;
-            state.view = userData.role;
-            initializeRealtimeListeners(userId);
-            showToast(`Welcome back, ${userData.username}!`, 'success');
-            renderApp();
-            
-        } catch (error) {
-            console.error("Login Failed:", error);
-            showToast("Login failed: " + error.message, 'error');
+        } else {
+            console.warn("User document not found. Logging out.");
+            handleLogout(); 
         }
+    }, (error) => {
+        console.error("Error fetching user data:", error);
+    });
+
+    // Listener for GLOBAL DATA
+    const collections = ['users', 'schools', 'assignments', 'notifications'];
+    collections.forEach(collectionName => {
+        onSnapshot(collection(db, getPath(collectionName)), (snapshot) => {
+            state.data[collectionName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderApp();
+        }, (error) => {
+            console.error(`Error fetching ${collectionName}:`, error);
+        });
+    });
+}
+
+
+// ==============================================================================
+// 4. UTILITY FUNCTIONS
+// ==============================================================================
+
+function getPath(collectionName) {
+    return `artifacts/${appId}/${collectionName}`;
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 p-4 rounded-xl shadow-2xl text-white font-semibold z-50 transition-opacity duration-300 ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+window.setView = function(newView) {
+    state.view = newView;
+    renderApp();
+};
+
+window.toggleStudentFields = function(role) {
+    const studentFields = document.getElementById('student-fields');
+    const classSelect = document.getElementById('signup-class');
+    
+    if (studentFields && classSelect) {
+        const isStudent = role === 'Student';
+        studentFields.classList.toggle('hidden', !isStudent);
+        classSelect.required = isStudent;
+    }
+};
+
+window.currentAdminTab = 'Approvals'; // Default tab for Admin
+window.currentLeaderboardTab = 'Overall'; // Default tab for Leaderboard
+
+// ==============================================================================
+// 5. AUTHENTICATION AND CRUD HANDLERS
+// ==============================================================================
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const form = e.target;
+    const username = form.elements['username'].value;
+    const pin = form.elements['pin'].value;
+    
+    showToast("Attempting login...", 'info');
+
+    try {
+        // MOCK API CALL: In a real app, replace this with your serverless function endpoint
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, pin })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Login failed due to network or server error.');
+        }
+
+        const data = await response.json();
+        await signInWithCustomToken(auth, data.token);
+        showToast("Login successful!", 'success');
+    } catch (error) {
+        console.error("Login failed:", error.message);
+        showToast(error.message || "Login failed. Check username and PIN.", 'error');
+    }
+}
+
+async function handleSignup(e) {
+    e.preventDefault();
+    const form = e.target;
+    const role = form.elements['role'].value;
+    const schoolId = form.elements['school'].value;
+    const username = form.elements['username'].value;
+    const pin = form.elements['pin'].value;
+    const classValue = role === 'Student' ? form.elements['class'].value : null;
+
+    if (!role || !schoolId || !username || !pin || (role === 'Student' && !classValue)) {
+        return showToast("Please fill all required fields.", 'error');
+    }
+
+    try {
+        // MOCK API CALL: In a real app, replace this with your serverless function endpoint
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, pin, role, schoolId, class: classValue })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Registration failed.');
+        }
+
+        const data = await response.json();
+        await signInWithCustomToken(auth, data.token);
+        showToast("Signup successful! Awaiting Admin approval...", 'success');
+    } catch (error) {
+        console.error("Signup failed:", error.message);
+        showToast(error.message || "Signup failed. Username may already be taken.", 'error');
+    }
+}
+
+window.handleLogout = async function() {
+    try {
+        await auth.signOut();
+        state.user = null;
+        setView('Home');
+        showToast("You have been logged out.", 'info');
+    } catch (error) {
+        console.error("Logout error:", error);
+        showToast("Error during logout.", 'error');
+    }
+}
+
+window.updateUserStatus = async function(userId, status) {
+    if (state.user?.role !== 'Admin') {
+        return showToast("Permission denied.", 'error');
     }
     
-    // --- DATA MANAGEMENT FUNCTIONS ---
+    try {
+        const userRef = doc(db, `artifacts/${appId}/users/${userId}`);
 
-    /** Updates the status of a pending user (Admin dashboard) */
-    window.updateUserStatus = async function(userId, newStatus) {
-        try {
-            // FIX: Using the correct user document path
-            const userRef = doc(db, `artifacts/${appId}/users/${userId}`);
-            await updateDoc(userRef, { status: newStatus });
-            showToast(`User ${userId} ${newStatus} successfully.`, 'success');
-        } catch (error) {
-            console.error("Error updating user status:", error);
-            showToast(`Failed to ${newStatus} user.`, 'error');
+        if (status === 'Approved') {
+            await updateDoc(userRef, { status: 'Approved' });
+            showToast(`User ${userId.substring(0, 5)}... approved!`, 'success');
+        } else if (status === 'Rejected') {
+            await updateDoc(userRef, { status: 'Rejected' });
+            showToast(`User ${userId.substring(0, 5)}... rejected.`, 'info');
         }
+    } catch (error) {
+        console.error("Error updating user status:", error);
+        showToast("Error updating user status.", 'error');
     }
+}
 
-    /** Admin function to add a new school */
-    window.addSchool = async function(event) {
-        event.preventDefault();
-        const schoolName = document.getElementById('new-school-name').value;
-        if (!schoolName) {
-            showToast("School name is required.", 'error');
-            return;
-        }
-        try {
-            await addDoc(collection(db, getPath('schools')), { name: schoolName, createdAt: serverTimestamp() });
-            document.getElementById('new-school-name').value = '';
-            showToast(`${schoolName} added successfully.`, 'success');
-        } catch (error) {
-            console.error("Error adding school:", error);
-            showToast("Failed to add school.", 'error');
-        }
-    }
-
-    /** Teacher function to add an assignment/MCQ */
-    window.addAssignment = async function(event) {
-        event.preventDefault();
-        const form = event.target;
-        const type = form.type.value;
-        const classVal = form.class.value;
-        const subject = form.subject.value;
-        const title = form.title.value;
-        
-        let content;
-        if (type === 'pdf') {
-            content = form.pdfUrl.value;
-        } else {
-            try {
-                content = JSON.parse(form.mcqData.value);
-            } catch (e) {
-                showToast("MCQ content must be valid JSON.", 'error');
-                return;
-            }
-        }
-
-
-        if (!title || !classVal || !subject || !content) {
-            showToast("All fields are required for the assignment.", 'error');
-            return;
-        }
-
-        try {
-            const newAssignment = {
-                title,
-                class: classVal,
-                subject,
-                type,
-                content,
-                teacherId: auth.currentUser?.uid || state.user.username,
-                createdAt: serverTimestamp(),
-            };
-            await addDoc(collection(db, getPath('assignments')), newAssignment);
-            form.reset();
-            showToast(`${title} assignment added successfully!`, 'success');
-        } catch (error) {
-            console.error("Error adding assignment:", error);
-            showToast("Failed to add assignment. Check MCQ JSON format if applicable.", 'error');
-        }
-    }
-
-    /** Admin function to post a new notification */
-    window.postNotification = async function(event) {
-        event.preventDefault();
-        const message = document.getElementById('new-notification-message').value;
-        if (!message) return;
-        try {
-            await addDoc(collection(db, getPath('notifications')), { message, timestamp: serverTimestamp() });
-            document.getElementById('new-notification-message').value = '';
-            showToast("Notification posted successfully!", 'success');
-        } catch (error) {
-            console.error("Error posting notification:", error);
-            showToast("Failed to post notification.", 'error');
-        }
-    }
-
-    // --- STUDENT QUIZ LOGIC ---
-
-    /** Sets up the quiz for the selected MCQ assignment */
-    window.startQuiz = function(assignmentId) {
-        const assignment = state.data.assignments.find(a => a.id === assignmentId);
-        if (!assignment || assignment.type !== 'mcq') {
-            showToast("Invalid assignment type.", 'error');
-            return;
-        }
-        state.currentAssignment = assignment;
-        state.quizState = {
-            currentQIndex: 0,
-            selectedOption: null,
-            score: 0,
-            coins: 0,
-        };
-        setView('Quiz');
-    }
-
-    /** Handles selection of an answer option */
-    window.selectOption = function(index) {
-        state.quizState.selectedOption = index;
-        renderApp();
-    }
-
-    /** Submits the current answer and moves to the next question */
-    window.submitAnswer = async function() {
-        const assignment = state.currentAssignment;
-        const currentQ = assignment.content[state.quizState.currentQIndex];
-        const selectedIdx = state.quizState.selectedOption;
-        
-        if (selectedIdx === null) {
-            showToast("Please select an answer before submitting.", 'error');
-            return;
-        }
-
-        const isCorrect = currentQ.options[selectedIdx] === currentQ.answer;
-
-        if (isCorrect) {
-            state.quizState.score += 1;
-            state.quizState.coins += 5;
-            showToast("Wow! You are doing wonders!", 'success');
-        } else {
-            showToast(`No problem! Better luck next time. The correct answer was: ${currentQ.answer}`, 'info');
-        }
-
-        // Move to next question or finish
-        if (state.quizState.currentQIndex < assignment.content.length - 1) {
-            state.quizState.currentQIndex += 1;
-            state.quizState.selectedOption = null;
-            renderApp();
-        } else {
-            // Quiz finished
-            showToast(`Quiz finished! Score: ${state.quizState.score}/${assignment.content.length}`, 'info');
-            await finishQuiz();
-        }
-    }
-/** Finalizes the quiz and updates Firestore */
-    async function finishQuiz() {
-        const { score, coins } = state.quizState;
-        const totalQuestions = state.currentAssignment.content.length;
-        const assignmentId = state.currentAssignment.id;
-
-        try {
-            // 1. Update User Coins and Score
-            const userRef = doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}`);
-            
-            // Calculate new badges
-            const newCoins = state.user.coins + coins;
-            let newBadges = [...state.user.badges];
-            
-            // Note: The badge requirements are usually Bronze -> Silver -> Gold (lowest coin -> highest coin)
-            // Correcting the logic based on standard achievement progression:
-            if (newCoins >= 7500 && !newBadges.includes('Gold')) newBadges.push('Gold');
-            if (newCoins >= 5000 && !newBadges.includes('Silver')) newBadges.push('Silver');
-            if (newCoins >= 2500 && !newBadges.includes('Bronze')) newBadges.push('Bronze');
-
-            await updateDoc(userRef, {
-                score: state.user.score + score, // Total overall score
-                coins: newCoins,
-                badges: newBadges.filter((value, index, self) => self.indexOf(value) === index), // Ensure unique badges
-            });
-
-            // 2. Add Submission Record
-            await addDoc(collection(db, getPath('submissions')), {
-                studentId: auth.currentUser.uid,
-                assignmentId: assignmentId,
-                score: score,
-                total: totalQuestions,
-                coinsEarned: coins,
-                submittedAt: serverTimestamp(),
-            });
-
-            state.currentAssignment = null;
-            setView('Student');
-            showToast(`Congratulations! You earned ${coins} coins. Check the leaderboard!`, 'success');
-
-        } catch (error) {
-            console.error("Error submitting quiz results:", error);
-            showToast("Error saving results. Please try again.", 'error');
-        }
-    }
-
-
-    // --- RENDERING FUNCTIONS (COMPONENTS) ---
-
-    const classes = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
-    const subjects = ['Math', 'Science', 'English', 'Social Studies', 'Kashmiri'];
-    const roles = ['Admin', 'Teacher', 'Student'];
-
-    /** Shared component for rendering the scrolling notification bar */
-    function renderNotifications() {
-        const ticker = document.getElementById('notification-ticker');
-        if (!ticker) return;
-
-        // Default message if no notifications are found
-        let content = '<span class="px-8 text-lg font-bold">Winter Vacation Assignment Released Today!</span>'; 
-
-        if (state.data.notifications.length > 0) {
-            const messages = state.data.notifications.map(n => n.message);
-            content = messages.map(msg => `<span class="px-8 text-lg font-bold">• ${msg} •</span>`).join('');
-        }
-        
-        ticker.innerHTML = `<div class="ticker-content">${content}</div>`;
-    }
+window.addSchool = async function(e) {
+    e.preventDefault();
+    if (state.user?.role !== 'Admin') return showToast("Permission denied.", 'error');
     
-   /** Renders the Authentication and Authorization Views */
+    const name = document.getElementById('new-school-name').value.trim();
+    if (!name) return showToast("School name cannot be empty.", 'error');
+
+    try {
+        await addDoc(collection(db, getPath('schools')), {
+            name: name,
+            createdAt: serverTimestamp()
+        });
+        showToast(`School "${name}" added successfully.`, 'success');
+        document.getElementById('new-school-name').value = ''; 
+    } catch (error) {
+        console.error("Error adding school:", error);
+        showToast("Error adding school.", 'error');
+    }
+}
+
+window.postNotification = async function(e) {
+    e.preventDefault();
+    if (state.user?.role !== 'Admin') return showToast("Permission denied.", 'error');
+
+    const message = document.getElementById('new-notification-message').value.trim();
+    if (!message) return showToast("Message cannot be empty.", 'error');
+
+    try {
+        await addDoc(collection(db, getPath('notifications')), {
+            message: message,
+            timestamp: serverTimestamp(),
+        });
+        showToast("Notification posted successfully.", 'success');
+        document.getElementById('new-notification-message').value = ''; 
+    } catch (error) {
+        console.error("Error posting notification:", error);
+        showToast("Error posting notification.", 'error');
+    }
+}
+
+window.renderNotifications = function() {
+    const banner = document.getElementById('notification-banner');
+    if (!banner) return;
+    
+    const sortedNotifications = [...state.data.notifications].sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+    });
+
+    const messages = sortedNotifications.map(n => n.message).join(' • ');
+
+    if (messages.length > 0) {
+        banner.innerHTML = `
+            <div class="absolute inset-0 flex items-center bg-yellow-500 text-gray-800 shadow-inner overflow-hidden">
+                <div class="w-full whitespace-nowrap">
+                    <span class="inline-block animate-marquee font-semibold text-sm py-2 px-4">
+                        ${messages}
+                    </span>
+                </div>
+            </div>
+        `;
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+        banner.innerHTML = '';
+    }
+}
+
+window.addAssignment = async function(e) {
+    e.preventDefault();
+    if (state.user?.role !== 'Teacher') return showToast("Permission denied.", 'error');
+    
+    const form = e.target;
+    const type = form.elements['type'].value;
+    const classValue = form.elements['class'].value;
+    const subject = form.elements['subject'].value;
+    const title = form.elements['title'].value;
+    
+    let content;
+    
+    if (type === 'mcq') {
+        const mcqData = form.elements['mcqData'].value;
+        try {
+            content = JSON.parse(mcqData);
+            if (!Array.isArray(content) || content.length === 0) throw new Error("MCQ data must be a non-empty array.");
+        } catch (e) {
+            return showToast("MCQ data is invalid JSON format.", 'error');
+        }
+    } else { // pdf/text
+        content = form.elements['pdfUrl'].value;
+    }
+
+    try {
+        await addDoc(collection(db, getPath('assignments')), {
+            teacherId: auth.currentUser.uid,
+            type: type,
+            class: classValue,
+            subject: subject,
+            title: title,
+            content: content,
+            createdAt: serverTimestamp()
+        });
+        showToast(`Assignment "${title}" uploaded successfully.`, 'success');
+        form.reset();
+    } catch (error) {
+        console.error("Error uploading assignment:", error);
+        showToast("Error uploading assignment.", 'error');
+    }
+}
+
+
+// Quiz Handlers
+window.startQuiz = function(assignmentId) {
+    const assignment = state.data.assignments.find(a => a.id === assignmentId);
+    if (!assignment || assignment.type !== 'mcq') {
+        return showToast("Quiz not found or not an MCQ type.", 'error');
+    }
+
+    state.currentAssignment = assignment;
+    state.quizState = {
+        currentQIndex: 0,
+        score: 0,
+        coins: 0,
+        selectedOption: null,
+    };
+    setView('Quiz');
+}
+
+window.selectOption = function(index) {
+    state.quizState.selectedOption = index;
+    renderApp();
+}
+
+window.submitAnswer = function() {
+    const qIndex = state.quizState.currentQIndex;
+    const currentQ = state.currentAssignment.content[qIndex];
+    const selectedIdx = state.quizState.selectedOption;
+    
+    if (selectedIdx === null) return showToast("Please select an option.", 'info');
+
+    const selectedAnswer = currentQ.options[selectedIdx];
+    
+    if (selectedAnswer === currentQ.answer) {
+        state.quizState.score += 10; 
+        state.quizState.coins += 5; 
+        showToast("Correct Answer! (+10 pts, +5 coins)", 'success');
+    } else {
+        showToast(`Incorrect. The answer was: ${currentQ.answer}`, 'error');
+    }
+
+    state.quizState.currentQIndex++;
+    state.quizState.selectedOption = null;
+
+    if (state.quizState.currentQIndex >= state.currentAssignment.content.length) {
+        finishQuiz(); 
+    } else {
+        renderApp(); 
+    }
+}
+
+async function finishQuiz() {
+    const { score, coins } = state.quizState;
+    const totalQuestions = state.currentAssignment.content.length;
+    const assignmentId = state.currentAssignment.id;
+
+    try {
+        if (!auth.currentUser) throw new Error("User not authenticated for quiz submission.");
+
+        const userRef = doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}`);
+        
+        const newCoins = state.user.coins + coins;
+        let newBadges = [...state.user.badges];
+        
+        if (newCoins >= 7500 && !newBadges.includes('Gold')) newBadges.push('Gold');
+        if (newCoins >= 5000 && !newBadges.includes('Silver')) newBadges.push('Silver');
+        if (newCoins >= 2500 && !newBadges.includes('Bronze')) newBadges.push('Bronze');
+
+        await updateDoc(userRef, {
+            score: state.user.score + score,
+            coins: newCoins,
+            badges: newBadges.filter((value, index, self) => self.indexOf(value) === index), 
+        });
+
+        await addDoc(collection(db, getPath('submissions')), {
+            studentId: auth.currentUser.uid,
+            assignmentId: assignmentId,
+            score: score,
+            total: totalQuestions,
+            coinsEarned: coins,
+            submittedAt: serverTimestamp(),
+        });
+
+        state.currentAssignment = null;
+        setView('Student');
+        showToast(`Congratulations! You earned ${coins} coins. Check the leaderboard!`, 'success');
+
+    } catch (error) {
+        console.error("Error submitting quiz results:", error);
+        showToast("Error saving results. Please try again.", 'error');
+    }
+}
+
+
+// ==============================================================================
+// 6. RENDERING FUNCTIONS (Integrated and Final)
+// ==============================================================================
+
+/** Renders the Authentication and Authorization Views */
 function renderAuthView() {
     let html = '';
-    const classes = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']; // Defined for the Class select
+    
+    const classes = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
-    if (!auth.currentUser) {
+    if (!auth.currentUser || state.view === 'Home') {
         // --- Login Form ---
         html += `
             <form onsubmit="handleLogin(event)" class="max-w-md mx-auto p-6 glass-card rounded-[20px] shadow-xl mb-12">
@@ -734,34 +655,16 @@ function renderAuthView() {
 
                 <p class="text-center text-sm mt-4 text-gray-500">
                     Don't have an account? 
-                    <button type="button" onclick="setView('Signup')" class="text-purple-600 hover:text-purple-800 font-semibold">
+                    <button type="button" onclick="setView('Auth')" class="text-purple-600 hover:text-purple-800 font-semibold">
                         Sign Up Here
                     </button>
                 </p>
             </form>
         `;
-    } else if (auth.currentUser && state.user?.status === 'Pending') {
-        // --- Pending Approval View ---
-        html += `
-            <div class="max-w-md mx-auto p-8 glass-card rounded-[20px] shadow-xl text-center">
-                <h2 class="text-3xl font-bold text-yellow-600 mb-4">Account Pending Approval</h2>
-                <p class="text-gray-700 mb-6">
-                    Thank you for signing up, **${state.user.username}**!
-                    Your account is currently under review by the **Zone Admin**.
-                </p>
-                <p class="text-sm text-gray-500 mb-6">
-                    You will be able to log in once your request is approved. Please check back later.
-                </p>
-                <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-xl transition">
-                    Logout
-                </button>
-            </div>
-        `;
-    } else {
+    } 
+    
+    if (state.view === 'Auth' && !auth.currentUser) {
         // --- Signup Form ---
-        // FIX: The original code block you provided started here, but it incorrectly used the global `html` variable. 
-        // We ensure it is added to the local `html` variable.
-        
         const schoolOptions = state.data.schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
         html += `
@@ -813,11 +716,35 @@ function renderAuthView() {
                 <button type="submit" class="w-full bg-green-600 text-white font-semibold py-3 rounded-xl hover:bg-green-700 transition duration-150 shadow-lg shadow-green-500/50">
                     Submit for Approval
                 </button>
+                <p class="text-center text-sm mt-4 text-gray-500">
+                    Already have an account? 
+                    <button type="button" onclick="setView('Home')" class="text-purple-600 hover:text-purple-800 font-semibold">
+                        Log In
+                    </button>
+                </p>
             </form>
+        `;
+    } 
+    
+    if (auth.currentUser && state.user?.status === 'Pending') {
+        // --- Pending Approval View ---
+        html = `
+            <div class="max-w-md mx-auto p-8 glass-card rounded-[20px] shadow-xl text-center">
+                <h2 class="text-3xl font-bold text-yellow-600 mb-4">Account Pending Approval</h2>
+                <p class="text-gray-700 mb-6">
+                    Thank you for signing up, **${state.user.username}**!
+                    Your account is currently under review by the **Zone Admin**.
+                </p>
+                <p class="text-sm text-gray-500 mb-6">
+                    You will be able to log in once your request is approved. Please check back later.
+                </p>
+                <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-xl transition">
+                    Logout
+                </button>
+            </div>
         `;
     }
 
-    // The function returns the accumulated 'html' string wrapped in the container div.
     return `
         <div class="flex flex-col items-center justify-center pt-12 pb-20">
             <div class="w-full max-w-xl">
@@ -827,275 +754,163 @@ function renderAuthView() {
     `;
 }
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    /** Renders the Home/Auth/Pending screens */
-    function renderAuthView() {
-        let html = '';
+/** Renders the Admin Dashboard */
+function renderAdminDashboard() {
+    const pendingUsers = state.data.users.filter(u => u.status === 'Pending');
+    const schoolOptions = state.data.schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
-        if (state.view === 'Pending') {
-            html = `
-                <div class="text-center p-10">
-                    <svg class="w-16 h-16 mx-auto text-yellow-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <h2 class="text-2xl font-bold mt-4">Account Pending Approval</h2>
-                    <p class="text-gray-600 mt-2">Your signup request has been submitted. An administrator must approve your account before you can log in.</p>
-                    <button onclick="setView('Auth', 'Login')" class="mt-6 bg-gray-500 hover:bg-gray-600 text-white py-2 px-6 rounded-xl transition duration-150">Go to Login</button>
-                </div>
-            `;
-        } else {
-            // Login/Signup Switch
-            html += `
-                <div class="flex justify-center mb-6">
-                    <button onclick="setView('Auth', 'Login')" class="px-6 py-2 rounded-l-full font-semibold transition duration-150 ${state.authMode === 'Login' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">Login</button>
-                    <button onclick="setView('Auth', 'Signup')" class="px-6 py-2 rounded-r-full font-semibold transition duration-150 ${state.authMode === 'Signup' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">Signup</button>
-                </div>
-            `;
+    return `
+        <div class="p-6">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Admin Dashboard</h2>
+            <p class="text-sm text-gray-500 mb-8">Logged in as: ${state.user.username}</p>
 
-            if (state.authMode === 'Login') {
-                // --- Login Form ---
-                html += `
-                    <form onsubmit="handleLogin(event)" class="max-w-md mx-auto p-6 glass-card rounded-[20px] shadow-xl">
-                        <h2 class="text-2xl font-bold mb-6 text-center">Portal Login</h2>
+            <div class="flex space-x-4 mb-6 border-b pb-2">
+                <button onclick="window.currentAdminTab='Approvals'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentAdminTab === 'Approvals' ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Approvals (${pendingUsers.length})</button>
+                <button onclick="window.currentAdminTab='Schools'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentAdminTab === 'Schools' ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Schools</button>
+                <button onclick="window.currentAdminTab='Notifications'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentAdminTab === 'Notifications' ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Notifications</button>
+            </div>
 
-                        <div class="mb-4">
-                            <label for="login-role" class="block text-sm font-medium text-gray-700 mb-1">Select Role</label>
-                            <select id="login-role" name="role" onchange="this.value === 'Admin' ? document.getElementById('admin-key-field').classList.remove('hidden') : document.getElementById('admin-key-field').classList.add('hidden')"
-                                class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
-                                ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
-                            </select>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="login-username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                            <input type="text" id="login-username" name="username" required 
-                                class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-
-                        <div class="mb-4">
-                            <label for="login-pin" class="block text-sm font-medium text-gray-700 mb-1">PIN</label>
-                            <input type="password" id="login-pin" name="pin" required maxlength="6"
-                                class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        
-                        <div id="admin-key-field" class="hidden mb-6">
-                            <label for="login-adminKey" class="block text-sm font-medium text-gray-700 mb-1">Admin Security Key</label>
-                            <input type="password" id="login-adminKey" name="adminKey" 
-                                class="w-full p-3 border border-gray-300 rounded-xl focus:ring-red-500 focus:border-red-500">
-                        </div>
-                        
-                        <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition duration-150 shadow-lg shadow-blue-500/50">
-                            Login
-                        </button>
+            ${window.currentAdminTab === 'Schools' ? `
+                <div class="glass-card p-6 rounded-[20px] mb-8">
+                    <h3 class="text-xl font-bold mb-4">Add New School</h3>
+                    <form onsubmit="addSchool(event)" class="flex space-x-2">
+                        <input type="text" id="new-school-name" placeholder="School Name (e.g., GPS Pethgam)" required
+                            class="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                        <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-xl shadow-md">Add School</button>
                     </form>
-                `;
-            } else {
-                // --- Signup Form ---
-                 const schoolOptions = state.data.schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-
-                html += `
-                    <form onsubmit="handleSignup(event)" class="max-w-md mx-auto p-6 glass-card rounded-[20px] shadow-xl">
-                        <h2 class="text-2xl font-bold mb-6 text-center">New Account Signup</h2>
-
-                        <div class="mb-4">
-                            <label for="signup-role" class="block text-sm font-medium text-gray-700 mb-1">Select Role</label>
-                            <select id="signup-role" name="role" onchange="window.toggleStudentFields(this.value)"
-                                class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Select --</option>
-                                <option value="Teacher">Teacher</option>
-                                <option value="Student">Student</option>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="signup-school" class="block text-sm font-medium text-gray-700 mb-1">Select School</label>
-                            <select id="signup-school" name="school" required
-                                class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Select School --</option>
-                                ${schoolOptions}
-                            </select>
-                            ${state.data.schools.length === 0 ? '<p class="text-xs text-red-500 mt-1">No schools available. Admin needs to add schools.</p>' : ''}
-                        </div>
-                        
-                        <div id="student-fields" class="hidden">
-                            <div class="mb-4">
-                                <label for="signup-class" class="block text-sm font-medium text-gray-700 mb-1">Select Class</label>
-                                <select id="signup-class" name="class"
-                                    class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
-                                    ${classes.map(c => `<option value="${c}">${c}</option>`).join('')}
-
-            <div class="flex flex-col items-center justify-center pt-12 pb-20">
-                <div class="w-full max-w-xl">
-                    ${html}
+                    
+                    <h3 class="text-xl font-bold mt-8 mb-4">Existing Schools</h3>
+                    <ul class="space-y-2 max-h-48 overflow-y-auto">
+                        ${state.data.schools.map(s => `
+                            <li class="p-3 bg-white rounded-lg flex justify-between items-center border border-gray-200">
+                                <span>${s.name}</span>
+                                <span class="text-xs text-gray-500">ID: ${s.id.substring(0, 5)}...</span>
+                            </li>
+                        `).join('')}
+                    </ul>
                 </div>
-            </div>
-        `;
-    }
+            ` : window.currentAdminTab === 'Notifications' ? `
+                <div class="glass-card p-6 rounded-[20px] mb-8">
+                    <h3 class="text-xl font-bold mb-4">Post New Scrolling Notification</h3>
+                    <form onsubmit="postNotification(event)">
+                        <textarea id="new-notification-message" placeholder="Type message for the scrolling ticker..." required
+                            class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 mb-4"></textarea>
+                        <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl shadow-md">Post Notification</button>
+                    </form>
 
-    /** Renders the Admin Dashboard */
-    function renderAdminDashboard() {
-        const pendingUsers = state.data.users.filter(u => u.status === 'Pending');
-        const schoolOptions = state.data.schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-
-        return `
-            <div class="p-6">
-                <h2 class="text-3xl font-bold mb-6 text-gray-800">Admin Dashboard</h2>
-                <p class="text-sm text-gray-500 mb-8">Logged in as: ${state.user.username}</p>
-
-                <div class="flex space-x-4 mb-6 border-b pb-2">
-                    <button onclick="window.currentAdminTab='Approvals'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentAdminTab === 'Approvals' ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Approvals (${pendingUsers.length})</button>
-                    <button onclick="window.currentAdminTab='Schools'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentAdminTab === 'Schools' ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Schools</button>
-                    <button onclick="window.currentAdminTab='Notifications'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentAdminTab === 'Notifications' ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Notifications</button>
+                    <h3 class="text-xl font-bold mt-8 mb-4">Recent Notifications</h3>
+                    <ul class="space-y-2 max-h-48 overflow-y-auto">
+                        ${state.data.notifications.map(n => `
+                            <li class="p-3 bg-white rounded-lg border border-gray-200 text-sm">
+                                ${n.message}
+                                <span class="block text-xs text-gray-500">${n.timestamp ? new Date(n.timestamp.seconds * 1000).toLocaleString() : 'Saving...'}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
                 </div>
+            ` : `
+                <div class="glass-card p-6 rounded-[20px] shadow-xl">
+                    <h3 class="text-2xl font-bold mb-4">Pending User Signups (${pendingUsers.length})</h3>
+                    ${pendingUsers.length === 0 ? '<p class="text-gray-500">No pending users awaiting approval. All clear!</p>' : ''}
+                    
+                    <ul class="space-y-4">
+                        ${pendingUsers.map(u => `
+                            <li class="double-shade-card p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                <div>
+                                    <p class="font-bold text-lg text-white">${u.username} (${u.role})</p>
+                                    <p class="text-yellow-100 text-sm">${u.class || 'N/A'} - ${state.data.schools.find(s => s.id === u.schoolId)?.name || 'Unknown School'}</p>
+                                </div>
+                                <div class="mt-3 sm:mt-0 flex space-x-2">
+                                    <button onclick="updateUserStatus('${u.id}', 'Approved')" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg shadow-md transition">Approve</button>
+                                    <button onclick="updateUserStatus('${u.id}', 'Rejected')" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg shadow-md transition">Reject</button>
+                                </div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `}
+        </div>
+    `;
+}
 
-                ${window.currentAdminTab === 'Schools' ? `
-                    <div class="glass-card p-6 rounded-[20px] mb-8">
-                        <h3 class="text-xl font-bold mb-4">Add New School</h3>
-                        <form onsubmit="addSchool(event)" class="flex space-x-2">
-                            <input type="text" id="new-school-name" placeholder="School Name (e.g., GPS Pethgam)" required
-                                class="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
-                            <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-xl shadow-md">Add School</button>
-                        </form>
-                        
-                        <h3 class="text-xl font-bold mt-8 mb-4">Existing Schools</h3>
-                        <ul class="space-y-2">
-                            ${state.data.schools.map(s => `
-                                <li class="p-3 bg-white rounded-lg flex justify-between items-center border border-gray-200">
-                                    <span>${s.name}</span>
-                                    <span class="text-xs text-gray-500">ID: ${s.id.substring(0, 5)}...</span>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                ` : window.currentAdminTab === 'Notifications' ? `
-                    <div class="glass-card p-6 rounded-[20px] mb-8">
-                        <h3 class="text-xl font-bold mb-4">Post New Scrolling Notification</h3>
-                        <form onsubmit="postNotification(event)">
-                            <textarea id="new-notification-message" placeholder="Type message for the scrolling ticker..." required
-                                class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 mb-4"></textarea>
-                            <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl shadow-md">Post Notification</button>
-                        </form>
-
-                        <h3 class="text-xl font-bold mt-8 mb-4">Recent Notifications</h3>
-                        <ul class="space-y-2 max-h-48 overflow-y-auto">
-                            ${state.data.notifications.map(n => `
-                                <li class="p-3 bg-white rounded-lg border border-gray-200 text-sm">
-                                    ${n.message}
-                                    <span class="block text-xs text-gray-500">${n.timestamp ? new Date(n.timestamp.seconds * 1000).toLocaleString() : 'Saving...'}</span>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                ` : `
-                    <div class="glass-card p-6 rounded-[20px] shadow-xl">
-                        <h3 class="text-2xl font-bold mb-4">Pending User Signups (${pendingUsers.length})</h3>
-                        ${pendingUsers.length === 0 ? '<p class="text-gray-500">No pending users awaiting approval. All clear!</p>' : ''}
-                        
-                        <ul class="space-y-4">
-                            ${pendingUsers.map(u => `
-                                <li class="double-shade-card p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                                    <div>
-                                        <p class="font-bold text-lg text-white">${u.username} (${u.role})</p>
-                                        <p class="text-yellow-100 text-sm">${u.class || 'N/A'} - ${state.data.schools.find(s => s.id === u.schoolId)?.name || 'Unknown School'}</p>
-                                    </div>
-                                    <div class="mt-3 sm:mt-0 flex space-x-2">
-                                        <button onclick="updateUserStatus('${u.id}', 'Approved')" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg shadow-md transition">Approve</button>
-                                        <button onclick="updateUserStatus('${u.id}', 'Rejected')" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg shadow-md transition">Reject</button>
-                                    </div>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                `}
-            </div>
-        `;
-    }
-    window.currentAdminTab = 'Approvals'; // Default tab for Admin
 /** Renders the Teacher Dashboard */
-    function renderTeacherDashboard() {
-        const myAssignments = state.data.assignments.filter(a => a.teacherId === (auth.currentUser?.uid || state.user.username));
+function renderTeacherDashboard() {
+    const myAssignments = state.data.assignments.filter(a => a.teacherId === (auth.currentUser?.uid || state.user.username));
 
-        return `
-            <div class="p-6">
-                <h2 class="text-3xl font-bold mb-6 text-gray-800">Teacher Dashboard</h2>
-                <p class="text-gray-500 mb-8">Welcome, ${state.user.username}!</p>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="double-shade-card p-6 rounded-[20px] text-white shadow-xl">
-                        <h3 class="text-xl font-bold mb-2">My Assignments</h3>
-                        <p class="text-sm">Total Uploaded: ${myAssignments.length}</p>
-                    </div>
-                    <div class="double-shade-card p-6 rounded-[20px] text-white shadow-xl" onclick="setView('Leaderboard')" style="cursor:pointer">
-                        <h3 class="text-xl font-bold mb-2">View Leaderboard</h3>
-                        <p class="text-sm">Check student rankings.</p>
-                    </div>
-                    <div class="double-shade-card p-6 rounded-[20px] text-white shadow-xl">
-                        <h3 class="text-xl font-bold mb-2">Student Submissions</h3>
-                        <p class="text-sm">View and grade work (Mock)</p>
-                    </div>
+    return `
+        <div class="p-6">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Teacher Dashboard</h2>
+            <p class="text-gray-500 mb-8">Welcome, ${state.user.username}!</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="double-shade-card p-6 rounded-[20px] text-white shadow-xl">
+                    <h3 class="text-xl font-bold mb-2">My Assignments</h3>
+                    <p class="text-sm">Total Uploaded: ${myAssignments.length}</p>
                 </div>
-
-                <div class="glass-card p-6 rounded-[20px] mb-8 shadow-lg">
-                    <h3 class="text-2xl font-bold mb-4">Upload New Assignment</h3>
-                    <form onsubmit="addAssignment(event)">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Type</label>
-                                <select name="type" id="assignment-type" onchange="window.toggleAssignmentContent(this.value)" class="w-full p-3 border rounded-xl">
-                                    <option value="pdf">PDF/Text Assignment</option>
-                                    <option value="mcq">MCQ Quiz</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Class</label>
-                                <select name="class" class="w-full p-3 border rounded-xl">${classes.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Subject</label>
-                                <select name="subject" class="w-full p-3 border rounded-xl">${subjects.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Title</label>
-                                <input type="text" name="title" required placeholder="Assignment Title" class="w-full p-3 border rounded-xl">
-                            </div>
-                        </div>
-                        
-                        <div id="pdf-content" class="mb-4">
-                            <label class="block text-sm font-medium mb-1">Assignment Content (Text/URL)</label>
-                            <textarea name="pdfUrl" placeholder="Paste assignment text or PDF URL..." class="w-full p-3 border rounded-xl h-24"></textarea>
-                        </div>
-
-                        <div id="mcq-content" class="hidden mb-4">
-                            <label class="block text-sm font-medium mb-1">MCQ Data (JSON Format)</label>
-                            <textarea name="mcqData" placeholder='[{"question": "What is 2+2?", "options": ["3", "4", "5", "6"], "answer": "4"}]' class="w-full p-3 border rounded-xl h-32"></textarea>
-                            <p class="text-xs text-red-500 mt-1">IMPORTANT: Ensure valid JSON structure for MCQs.</p>
-                        </div>
-
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-lg mt-2">Upload Assignment</button>
-                    </form>
+                <div class="double-shade-card p-6 rounded-[20px] text-white shadow-xl" onclick="setView('Leaderboard')" style="cursor:pointer">
+                    <h3 class="text-xl font-bold mb-2">View Leaderboard</h3>
+                    <p class="text-sm">Check student rankings.</p>
                 </div>
-
-                <script>
-                    window.toggleAssignmentContent = function(type) {
-                        document.getElementById('pdf-content').classList.toggle('hidden', type === 'mcq');
-                        document.getElementById('mcq-content').classList.toggle('hidden', type === 'pdf');
-                    };
-                    window.toggleAssignmentContent(document.getElementById('assignment-type')?.value || 'pdf'); // Default view
-                </script>
+                <div class="double-shade-card p-6 rounded-[20px] text-white shadow-xl">
+                    <h3 class="text-xl font-bold mb-2">Student Submissions</h3>
+                    <p class="text-sm">View and grade work (Mock)</p>
+                </div>
             </div>
-        `;
-    }
-    /** Renders the Student Dashboard */
+
+            <div class="glass-card p-6 rounded-[20px] mb-8 shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Upload New Assignment</h3>
+                <form onsubmit="addAssignment(event)">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Type</label>
+                            <select name="type" id="assignment-type" onchange="window.toggleAssignmentContent(this.value)" class="w-full p-3 border rounded-xl">
+                                <option value="pdf">PDF/Text Assignment</option>
+                                <option value="mcq">MCQ Quiz</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Class</label>
+                            <select name="class" class="w-full p-3 border rounded-xl">${classes.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Subject</label>
+                            <select name="subject" class="w-full p-3 border rounded-xl">${subjects.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Title</label>
+                            <input type="text" name="title" required placeholder="Assignment Title" class="w-full p-3 border rounded-xl">
+                        </div>
+                    </div>
+                    
+                    <div id="pdf-content" class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Assignment Content (Text/URL)</label>
+                        <textarea name="pdfUrl" placeholder="Paste assignment text or PDF URL..." class="w-full p-3 border rounded-xl h-24"></textarea>
+                    </div>
+
+                    <div id="mcq-content" class="hidden mb-4">
+                        <label class="block text-sm font-medium mb-1">MCQ Data (JSON Format)</label>
+                        <textarea name="mcqData" placeholder='[{"question": "What is 2+2?", "options": ["3", "4", "5", "6"], "answer": "4"}]' class="w-full p-3 border rounded-xl h-32"></textarea>
+                        <p class="text-xs text-red-500 mt-1">IMPORTANT: Ensure valid JSON structure for MCQs.</p>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-lg mt-2">Upload Assignment</button>
+                </form>
+            </div>
+
+            <script>
+                window.toggleAssignmentContent = function(type) {
+                    document.getElementById('pdf-content').classList.toggle('hidden', type === 'mcq');
+                    document.getElementById('mcq-content').classList.toggle('hidden', type === 'pdf');
+                };
+                // Call it once after the content is rendered
+                setTimeout(() => window.toggleAssignmentContent(document.getElementById('assignment-type')?.value || 'pdf'), 0);
+            </script>
+        </div>
+    `;
+}
+
+/** Renders the Student Dashboard */
 function renderStudentDashboard() {
-    // Check if state.user is available before accessing its properties
     if (!state.user) {
         return '<div class="p-8 text-center text-red-600">User data is missing. Please log in again.</div>';
     }
@@ -1103,12 +918,10 @@ function renderStudentDashboard() {
     const studentClass = state.user.class;
     const classAssignments = state.data.assignments.filter(a => a.class === studentClass);
     
-    // Determine badges
     const badgeIcons = {
         Bronze: '🌟', Silver: '🪙', Gold: '🏅'
     };
     
-    // Get badges user has earned, ensuring order
     const currentBadges = ['Bronze', 'Silver', 'Gold'].filter(b => state.user.badges.includes(b)).map(b => badgeIcons[b]).join(' ');
 
 
@@ -1199,57 +1012,8 @@ function renderQuizView() {
     `;
 }
 
-// NOTE: finishQuiz is a dependency of renderQuizView (via submitAnswer) and must be defined outside the rendering functions.
-async function finishQuiz() {
-    const { score, coins } = state.quizState;
-    const totalQuestions = state.currentAssignment.content.length;
-    const assignmentId = state.currentAssignment.id;
-
-    try {
-        if (!auth.currentUser) throw new Error("User not authenticated for quiz submission.");
-
-        // 1. Update User Coins and Score
-        // FIX: Ensure correct path for single user document
-        const userRef = doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}`);
-        
-        // Calculate new badges
-        const newCoins = state.user.coins + coins;
-        let newBadges = [...state.user.badges];
-        
-        if (newCoins >= 7500 && !newBadges.includes('Gold')) newBadges.push('Gold');
-        if (newCoins >= 5000 && !newBadges.includes('Silver')) newBadges.push('Silver');
-        if (newCoins >= 2500 && !newBadges.includes('Bronze')) newBadges.push('Bronze');
-
-        await updateDoc(userRef, {
-            score: state.user.score + score, // Total overall score
-            coins: newCoins,
-            badges: newBadges.filter((value, index, self) => self.indexOf(value) === index), // Ensure unique badges
-        });
-
-        // 2. Add Submission Record (using the getPath function which is for collections)
-        await addDoc(collection(db, getPath('submissions')), {
-            studentId: auth.currentUser.uid,
-            assignmentId: assignmentId,
-            score: score,
-            total: totalQuestions,
-            coinsEarned: coins,
-            submittedAt: serverTimestamp(),
-        });
-
-        state.currentAssignment = null;
-        setView('Student');
-        showToast(`Congratulations! You earned ${coins} coins. Check the leaderboard!`, 'success');
-
-    } catch (error) {
-        console.error("Error submitting quiz results:", error);
-        showToast("Error saving results. Please try again.", 'error');
-    }
-}
-
-
 /** Renders the Shared Leaderboard View */
 function renderLeaderboard() {
-    // Sort users by score (descending)
     const sortedUsers = [...state.data.users]
         .filter(u => u.role === 'Student' && u.status === 'Approved')
         .sort((a, b) => b.score - a.score);
@@ -1260,16 +1024,12 @@ function renderLeaderboard() {
         schoolName: state.data.schools.find(s => s.id === u.schoolId)?.name || 'N/A'
     }));
 
-    // Determine current tab
-    // Initialized to 'Overall' if not set
     window.currentLeaderboardTab = window.currentLeaderboardTab || 'Overall';
 
     let filteredUsers = rankUsers;
     if (window.currentLeaderboardTab === 'Class' && state.user?.class) {
-        // Ensure student can only see their own class leaderboard
         filteredUsers = rankUsers.filter(u => u.class === state.user.class);
     }
-    // Subject-wise filtering is mocked since subject scores aren't tracked granularly in this simple model
 
     return `
         <div class="p-6">
@@ -1301,12 +1061,10 @@ function renderLeaderboard() {
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         ${filteredUsers.map((u, index) => {
-                            // Check if the current user is the logged-in user
                             const isUser = auth.currentUser?.uid === u.id || (state.user?.username === u.username && state.user?.role === u.role);
                             const rowClass = isUser ? 'bg-blue-50 font-bold' : index < 3 ? 'bg-yellow-50' : 'bg-white';
                             const rankDisplay = u.rank === 1 ? '🥇' : u.rank === 2 ? '🥈' : u.rank === 3 ? '🥉' : u.rank;
                             
-                            // Map coins to badges for display
                             const badgeIcons = u.badges.map(b => {
                                 if (b === 'Gold') return '🏅';
                                 if (b === 'Silver') return '🪙'; 
@@ -1334,34 +1092,31 @@ function renderLeaderboard() {
     `;
 }
 
-// NOTE: Add this initialization if it was missing globally.
-window.currentLeaderboardTab = 'Overall';
-
 /** Main rendering function that switches the view */
 function renderApp() {
-    renderNotifications();
+    window.renderNotifications();
     const content = document.getElementById('main-content');
-    if (!content || !state.isAuthReady) {
-        content.innerHTML = '<div class="text-center p-20 text-gray-500">Loading Portal Services...</div>';
+
+    if (!content) return; // Exit if main container is missing
+
+    if (!state.isAuthReady) {
+        // Renders the loading screen image you shared
+        content.innerHTML = '<div class="text-center p-20 text-gray-500">Loading Fun Zone Data...</div>';
         return;
     }
 
     let html = '';
     
-    // RENDER: Check the current view state and render the appropriate dashboard/component.
     switch (state.view) {
         case 'Home':
         case 'Auth':
         case 'Pending':
-            // Assume renderAuthView is defined elsewhere
             html = renderAuthView();
             break;
         case 'Admin':
-            // Assume renderAdminDashboard is defined elsewhere
             html = renderAdminDashboard();
             break;
         case 'Teacher':
-            // Assume renderTeacherDashboard is defined elsewhere
             html = renderTeacherDashboard();
             break;
         case 'Student':
@@ -1374,28 +1129,28 @@ function renderApp() {
             html = renderQuizView();
             break;
         default:
-            // Fallback to Home/Auth view
             html = renderAuthView();
     }
 
     content.innerHTML = html;
 }
 
-// FIX: Ensure initialization is called if not done earlier in the script
+// ==============================================================================
+// 7. INITIALIZATION CALL
+// ==============================================================================
+
+// Execute initialization when the DOM is ready (or immediately if 'app' exists)
 if (document.getElementById('app')) {
-    // Only call this once if it hasn't been done in the initial script block load.
-    // If it's already at the bottom of the previous fixed block, you can ignore this line.
-    // initializeFirebase(); 
+    initializeFirebase();
+    // Assuming createSnowflakes() is defined in another script or your HTML head
+    // createSnowflakes(); 
 }
-     // --- INITIALIZATION ---
-        window.onload = () => {
-            initializeFirebase();
-            createSnowflakes(); // Start the snow animation
-            renderApp(); // Initial render
-        };
-        
-        // Expose setView to window for button clicks
-        window.setView;
+
+// Expose handlers globally
+window.handleLogin = handleLogin;
+window.handleSignup = handleSignup;
+window.addSchool = addSchool;
+window.postNotification = postNotification;
 
     </script>
 </body>
