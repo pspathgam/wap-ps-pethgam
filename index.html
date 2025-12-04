@@ -142,8 +142,1032 @@
         <p class="text-gray-500">Government Primary School Pethgam Wagoora | Winter Assignment Portal 2025</p>
         <p class="text-gray-600 mt-2">User ID: <span id="footer-user-id">N/A</span> | App ID: <span id="footer-app-id">N/A</span></p>
     </footer>
+   </script>
+  That's the final adjustment! You did a fantastic job finding those real keys. Now we need to put them into the correct structure and fix the imports.
+Here is the complete and corrected code block. You must replace the entire content of your existing <script type="module">...</script> tags with the code below.
+This fixes three things simultaneously:
+ * Corrects the Imports (using CDN URLs).
+ * Uses Your Real Keys (from the config you found).
+ * Removes Redundant Code (like const app = initializeApp(firebaseConfig); which is handled inside initializeFirebase).
+🚀 Final Code Fix
+// ==============================================================================
+// 1. FIREBASE IMPORTS (FIXED CDN MODULES)
+// The browser needs the full web URL for these files to load.
+// ==============================================================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"; 
+import { getAuth, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+import { getFirestore, doc, collection, onSnapshot, updateDoc, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+// ==============================================================================
+// 2. GLOBAL CONSTANTS AND STATE (USING YOUR REAL KEYS)
+// ==============================================================================
+
+// Your web app's Firebase configuration (using the values you provided)
+const firebaseConfig = {
+    apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM", // YOUR REAL API KEY
+    authDomain: "wap-ps-pethgam.firebaseapp.com",
+    projectId: "wap-ps-pethgam",
+    storageBucket: "wap-ps-pethgam.firebasestorage.app",
+    messagingSenderId: "430925411362",
+    appId: "1:430925411362:web:22857dee585d02fc54467b"
+};
+
+const appId = "zone-wagoora";
+
+const state = {
+    user: null, 
+    data: { 
+        users: [],
+        schools: [],
+        assignments: [],
+        notifications: [],
+        submissions: []
+    },
+    view: 'Home', 
+    isAuthReady: false, 
+    quizState: {
+        currentQIndex: 0,
+        score: 0,
+        coins: 0,
+        selectedOption: null,
+    },
+    currentAssignment: null, 
+};
+
+let db;
+let auth;
+
+const classes = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+const subjects = ['English', 'Mathematics', 'Science', 'Social Studies', 'Kashmiri', 'Computer Science'];
+
+
+// ==============================================================================
+// 3. FIREBASE INITIALIZATION AND AUTH LISTENERS
+// ==============================================================================
+
+/** Initializes Firebase and sets up authentication listener. */
+function initializeFirebase() {
+    try {
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        // Auth State Listener
+        onAuthStateChanged(auth, (user) => {
+            state.isAuthReady = true; // THIS LINE CLEARS THE LOADING SCREEN
+            
+            if (user) {
+                initializeRealtimeListeners(user.uid);
+            } else {
+                state.user = null;
+                state.data.users = []; 
+                if (state.view !== 'Signup') {
+                    setView('Home');
+                } else {
+                    renderApp(); 
+                }
+            }
+        });
+
+    } catch (error) {
+        // 🛑 CRITICAL FIX FOR ANDROID: Display error if initialization fails
+        console.error("Firebase initialization failed:", error); 
+        state.isAuthReady = true; // Clear the loading screen to show the error
+        
+        const content = document.getElementById('main-content');
+        if (content) {
+             content.innerHTML = `
+                <div class="p-8 text-center bg-red-100 border-4 border-red-600 rounded-xl max-w-lg mx-auto mt-12">
+                    <h2 class="text-2xl font-bold text-red-700">❌ CRITICAL ERROR ❌</h2>
+                    <p class="text-red-900 mt-2">Could not connect to Firebase services.</p>
+                    <p class="text-sm text-red-500 mt-4">This means the Firebase connection failed (but at least the script ran!).</p>
+                </div>
+            `;
+        }
+    }
+}
+
+/** Sets up real-time listeners for all necessary global and user-specific data. */
+function initializeRealtimeListeners(userId) {
+    if (!db) return;
+
+    // Listener for CURRENT USER's data
+    const userDocRef = doc(db, `artifacts/${appId}/users/${userId}`);
+    onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            state.user = { id: docSnap.id, ...docSnap.data() };
+            if (state.user.status === 'Pending') {
+                setView('Pending');
+            } else if (state.view === 'Home' || state.view === 'Auth' || state.view === 'Pending') {
+                setView(state.user.role); 
+            } else {
+                renderApp(); 
+            }
+        } else {
+            console.warn("User document not found. Logging out.");
+            handleLogout(); 
+        }
+    }, (error) => {
+        console.error("Error fetching user data:", error);
+    });
+
+    // Listener for GLOBAL DATA
+    const collections = ['users', 'schools', 'assignments', 'notifications'];
+    collections.forEach(collectionName => {
+        onSnapshot(collection(db, getPath(collectionName)), (snapshot) => {
+            state.data[collectionName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderApp();
+        }, (error) => {
+            console.error(`Error fetching ${collectionName}:`, error);
+        });
+    });
+}
+
+
+// ==============================================================================
+// 4. UTILITY FUNCTIONS
+// ==============================================================================
+
+function getPath(collectionName) {
+    return `artifacts/${appId}/${collectionName}`;
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 p-4 rounded-xl shadow-2xl text-white font-semibold z-50 transition-opacity duration-300 ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+window.setView = function(newView) {
+    state.view = newView;
+    renderApp();
+};
+
+window.toggleStudentFields = function(role) {
+    const studentFields = document.getElementById('student-fields');
+    const classSelect = document.getElementById('signup-class');
     
-</script>
+    if (studentFields && classSelect) {
+        const isStudent = role === 'Student';
+        studentFields.classList.toggle('hidden', !isStudent);
+        classSelect.required = isStudent;
+    }
+};
+
+window.currentAdminTab = 'Approvals'; // Default tab for Admin
+window.currentLeaderboardTab = 'Overall'; // Default tab for Leaderboard
+
+// ==============================================================================
+// 5. AUTHENTICATION AND CRUD HANDLERS
+// (NOTE: MOCK API CALLS ARE KEPT HERE. YOUR SERVER NEEDS TO HANDLE THESE.)
+// ==============================================================================
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const form = e.target;
+    const username = form.elements['username'].value;
+    const pin = form.elements['pin'].value;
+    
+    showToast("Attempting login...", 'info');
+
+    try {
+        // MOCK API CALL: In a real app, replace this with your serverless function endpoint
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, pin })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Login failed due to network or server error.');
+        }
+
+        const data = await response.json();
+        await signInWithCustomToken(auth, data.token);
+        showToast("Login successful!", 'success');
+    } catch (error) {
+        console.error("Login failed:", error.message);
+        showToast(error.message || "Login failed. Check username and PIN.", 'error');
+    }
+}
+
+async function handleSignup(e) {
+    e.preventDefault();
+    const form = e.target;
+    const role = form.elements['role'].value;
+    const schoolId = form.elements['school'].value;
+    const username = form.elements['username'].value;
+    const pin = form.elements['pin'].value;
+    const classValue = role === 'Student' ? form.elements['class'].value : null;
+
+    if (!role || !schoolId || !username || !pin || (role === 'Student' && !classValue)) {
+        return showToast("Please fill all required fields.", 'error');
+    }
+
+    try {
+        // MOCK API CALL: In a real app, replace this with your serverless function endpoint
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, pin, role, schoolId, class: classValue })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Registration failed.');
+        }
+
+        const data = await response.json();
+        await signInWithCustomToken(auth, data.token);
+        showToast("Signup successful! Awaiting Admin approval...", 'success');
+    } catch (error) {
+        console.error("Signup failed:", error.message);
+        showToast(error.message || "Signup failed. Username may already be taken.", 'error');
+    }
+}
+
+window.handleLogout = async function() {
+    try {
+        await auth.signOut();
+        state.user = null;
+        setView('Home');
+        showToast("You have been logged out.", 'info');
+    } catch (error) {
+        console.error("Logout error:", error);
+        showToast("Error during logout.", 'error');
+    }
+}
+
+window.updateUserStatus = async function(userId, status) {
+    if (state.user?.role !== 'Admin') {
+        return showToast("Permission denied.", 'error');
+    }
+    
+    try {
+        const userRef = doc(db, `artifacts/${appId}/users/${userId}`);
+
+        if (status === 'Approved') {
+            await updateDoc(userRef, { status: 'Approved' });
+            showToast(`User ${userId.substring(0, 5)}... approved!`, 'success');
+        } else if (status === 'Rejected') {
+            await updateDoc(userRef, { status: 'Rejected' });
+            showToast(`User ${userId.substring(0, 5)}... rejected.`, 'info');
+        }
+    } catch (error) {
+        console.error("Error updating user status:", error);
+        showToast("Error updating user status.", 'error');
+    }
+}
+
+window.addSchool = async function(e) {
+    e.preventDefault();
+    if (state.user?.role !== 'Admin') return showToast("Permission denied.", 'error');
+    
+    const name = document.getElementById('new-school-name').value.trim();
+    if (!name) return showToast("School name cannot be empty.", 'error');
+
+    try {
+        await addDoc(collection(db, getPath('schools')), {
+            name: name,
+            createdAt: serverTimestamp()
+        });
+        showToast(`School "${name}" added successfully.`, 'success');
+        document.getElementById('new-school-name').value = ''; 
+    } catch (error) {
+        console.error("Error adding school:", error);
+        showToast("Error adding school.", 'error');
+    }
+}
+
+window.postNotification = async function(e) {
+    e.preventDefault();
+    if (state.user?.role !== 'Admin') return showToast("Permission denied.", 'error');
+
+    const message = document.getElementById('new-notification-message').value.trim();
+    if (!message) return showToast("Message cannot be empty.", 'error');
+
+    try {
+        await addDoc(collection(db, getPath('notifications')), {
+            message: message,
+            timestamp: serverTimestamp(),
+        });
+        showToast("Notification posted successfully.", 'success');
+        document.getElementById('new-notification-message').value = ''; 
+    } catch (error) {
+        console.error("Error posting notification:", error);
+        showToast("Error posting notification.", 'error');
+    }
+}
+
+window.renderNotifications = function() {
+    const banner = document.getElementById('notification-banner');
+    if (!banner) return;
+    
+    const sortedNotifications = [...state.data.notifications].sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+    });
+
+    const messages = sortedNotifications.map(n => n.message).join(' • ');
+
+    if (messages.length > 0) {
+        banner.innerHTML = `
+            <div class="absolute inset-0 flex items-center bg-yellow-500 text-gray-800 shadow-inner overflow-hidden">
+                <div class="w-full whitespace-nowrap">
+                    <span class="inline-block animate-marquee font-semibold text-sm py-2 px-4">
+                        ${messages}
+                    </span>
+                </div>
+            </div>
+        `;
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+        banner.innerHTML = '';
+    }
+}
+
+window.addAssignment = async function(e) {
+    e.preventDefault();
+    if (state.user?.role !== 'Teacher') return showToast("Permission denied.", 'error');
+    
+    const form = e.target;
+    const type = form.elements['type'].value;
+    const classValue = form.elements['class'].value;
+    const subject = form.elements['subject'].value;
+    const title = form.elements['title'].value;
+    
+    let content;
+    
+    if (type === 'mcq') {
+        const mcqData = form.elements['mcqData'].value;
+        try {
+            content = JSON.parse(mcqData);
+            if (!Array.isArray(content) || content.length === 0) throw new Error("MCQ data must be a non-empty array.");
+        } catch (e) {
+            return showToast("MCQ data is invalid JSON format.", 'error');
+        }
+    } else { // pdf/text
+        content = form.elements['pdfUrl'].value;
+    }
+
+    try {
+        await addDoc(collection(db, getPath('assignments')), {
+            teacherId: auth.currentUser.uid,
+            type: type,
+            class: classValue,
+            subject: subject,
+            title: title,
+            content: content,
+            createdAt: serverTimestamp()
+        });
+        showToast(`Assignment "${title}" uploaded successfully.`, 'success');
+        form.reset();
+    } catch (error) {
+        console.error("Error uploading assignment:", error);
+        showToast("Error uploading assignment.", 'error');
+    }
+}
+
+
+// Quiz Handlers
+window.startQuiz = function(assignmentId) {
+    const assignment = state.data.assignments.find(a => a.id === assignmentId);
+    if (!assignment || assignment.type !== 'mcq') {
+        return showToast("Quiz not found or not an MCQ type.", 'error');
+    }
+
+    state.currentAssignment = assignment;
+    state.quizState = {
+        currentQIndex: 0,
+        score: 0,
+        coins: 0,
+        selectedOption: null,
+    };
+    setView('Quiz');
+}
+
+window.selectOption = function(index) {
+    state.quizState.selectedOption = index;
+    renderApp();
+}
+
+window.submitAnswer = function() {
+    const qIndex = state.quizState.currentQIndex;
+    const currentQ = state.currentAssignment.content[qIndex];
+    const selectedIdx = state.quizState.selectedOption;
+    
+    if (selectedIdx === null) return showToast("Please select an option.", 'info');
+
+    const selectedAnswer = currentQ.options[selectedIdx];
+    
+    if (selectedAnswer === currentQ.answer) {
+        state.quizState.score += 10; 
+        state.quizState.coins += 5; 
+        showToast("Correct Answer! (+10 pts, +5 coins)", 'success');
+    } else {
+        showToast(`Incorrect. The answer was: ${currentQ.answer}`, 'error');
+    }
+
+    state.quizState.currentQIndex++;
+    state.quizState.selectedOption = null;
+
+    if (state.quizState.currentQIndex >= state.currentAssignment.content.length) {
+        finishQuiz(); 
+    } else {
+        renderApp(); 
+    }
+}
+
+async function finishQuiz() {
+    const { score, coins } = state.quizState;
+    const totalQuestions = state.currentAssignment.content.length;
+    const assignmentId = state.currentAssignment.id;
+
+    try {
+        if (!auth.currentUser) throw new Error("User not authenticated for quiz submission.");
+
+        const userRef = doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}`);
+        
+        const newCoins = state.user.coins + coins;
+        let newBadges = [...state.user.badges];
+        
+        if (newCoins >= 7500 && !newBadges.includes('Gold')) newBadges.push('Gold');
+        if (newCoins >= 5000 && !newBadges.includes('Silver')) newBadges.push('Silver');
+        if (newCoins >= 2500 && !newBadges.includes('Bronze')) newBadges.push('Bronze');
+
+        await updateDoc(userRef, {
+            score: state.user.score + score,
+            coins: newCoins,
+            badges: newBadges.filter((value, index, self) => self.indexOf(value) === index), 
+        });
+
+        await addDoc(collection(db, getPath('submissions')), {
+            studentId: auth.currentUser.uid,
+            assignmentId: assignmentId,
+            score: score,
+            total: totalQuestions,
+            coinsEarned: coins,
+            submittedAt: serverTimestamp(),
+        });
+
+        state.currentAssignment = null;
+        setView('Student');
+        showToast(`Congratulations! You earned ${coins} coins. Check the leaderboard!`, 'success');
+
+    } catch (error) {
+        console.error("Error submitting quiz results:", error);
+        showToast("Error saving results. Please try again.", 'error');
+    }
+}
+
+
+// ==============================================================================
+// 6. RENDERING FUNCTIONS (Integrated and Final)
+// ==============================================================================
+
+/** Renders the Authentication and Authorization Views */
+function renderAuthView() {
+    let html = '';
+    
+    const classes = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+
+    if (!auth.currentUser || state.view === 'Home') {
+        // --- Login Form ---
+        html += `
+            <form onsubmit="handleLogin(event)" class="max-w-md mx-auto p-6 glass-card rounded-[20px] shadow-xl mb-12">
+                <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Welcome to Winter Portal ❄️</h2>
+                
+                <div class="mb-4">
+                    <label for="login-username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" id="login-username" name="username" required 
+                        class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div class="mb-6">
+                    <label for="login-pin" class="block text-sm font-medium text-gray-700 mb-1">4-6 Digit PIN</label>
+                    <input type="password" id="login-pin" name="pin" required minlength="4" maxlength="6"
+                        class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition duration-150 shadow-lg shadow-blue-500/50">
+                    Log In
+                </button>
+
+                <p class="text-center text-sm mt-4 text-gray-500">
+                    Don't have an account? 
+                    <button type="button" onclick="setView('Auth')" class="text-purple-600 hover:text-purple-800 font-semibold">
+                        Sign Up Here
+                    </button>
+                </p>
+            </form>
+        `;
+    } 
+    
+    if (state.view === 'Auth' && !auth.currentUser) {
+        // --- Signup Form ---
+        const schoolOptions = state.data.schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+        html += `
+            <form onsubmit="handleSignup(event)" class="max-w-md mx-auto p-6 glass-card rounded-[20px] shadow-xl">
+                <h2 class="text-2xl font-bold mb-6 text-center">New Account Signup</h2>
+
+                <div class="mb-4">
+                    <label for="signup-role" class="block text-sm font-medium text-gray-700 mb-1">Select Role</label>
+                    <select id="signup-role" name="role" onchange="window.toggleStudentFields(this.value)"
+                        class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Select --</option>
+                        <option value="Teacher">Teacher</option>
+                        <option value="Student">Student</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="signup-school" class="block text-sm font-medium text-gray-700 mb-1">Select School</label>
+                    <select id="signup-school" name="school" required
+                        class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Select School --</option>
+                        ${schoolOptions}
+                    </select>
+                    ${state.data.schools.length === 0 ? '<p class="text-xs text-red-500 mt-1">No schools available. Admin needs to add schools.</p>' : ''}
+                </div>
+                
+                <div id="student-fields" class="hidden">
+                    <div class="mb-4">
+                        <label for="signup-class" class="block text-sm font-medium text-gray-700 mb-1">Select Class</label>
+                        <select id="signup-class" name="class"
+                            class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                            ${classes.map(c => `<option value="${c}">${c}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="signup-username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" id="signup-username" name="username" required 
+                        class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <div class="mb-6">
+                    <label for="signup-pin" class="block text-sm font-medium text-gray-700 mb-1">4-6 Digit PIN</label>
+                    <input type="password" id="signup-pin" name="pin" required minlength="4" maxlength="6"
+                        class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <button type="submit" class="w-full bg-green-600 text-white font-semibold py-3 rounded-xl hover:bg-green-700 transition duration-150 shadow-lg shadow-green-500/50">
+                    Submit for Approval
+                </button>
+                <p class="text-center text-sm mt-4 text-gray-500">
+                    Already have an account? 
+                    <button type="button" onclick="setView('Home')" class="text-purple-600 hover:text-purple-800 font-semibold">
+                        Log In
+                    </button>
+                </p>
+            </form>
+        `;
+    } 
+    
+    if (auth.currentUser && state.user?.status === 'Pending') {
+        // --- Pending Approval View ---
+        html = `
+            <div class="max-w-md mx-auto p-8 glass-card rounded-[20px] shadow-xl text-center">
+                <h2 class="text-3xl font-bold text-yellow-600 mb-4">Account Pending Approval</h2>
+                <p class="text-gray-700 mb-6">
+                    Thank you for signing up, **${state.user.username}**!
+                    Your account is currently under review by the **Zone Admin**.
+                </p>
+                <p class="text-sm text-gray-500 mb-6">
+                    You will be able to log in once your request is approved. Please check back later.
+                </p>
+                <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-xl transition">
+                    Logout
+                </button>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="flex flex-col items-center justify-center pt-12 pb-20">
+            <div class="w-full max-w-xl">
+                ${html}
+            </div>
+        </div>
+    `;
+}
+
+/** Renders the Admin Dashboard */
+function renderAdminDashboard() {
+    const pendingUsers = state.data.users.filter(u => u.status === 'Pending');
+    const schoolOptions = state.data.schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+    return `
+        <div class="p-6">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Admin Dashboard</h2>
+            <p class="text-sm text-gray-500 mb-8">Logged in as: ${state.user.username}</p>
+
+            <div class="flex space-x-4 mb-6 border-b pb-2">
+                <button onclick="window.currentAdminTab='Approvals'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentAdminTab === 'Approvals' ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Approvals (${pendingUsers.length})</button>
+                <button onclick="window.currentAdminTab='Schools'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentAdminTab === 'Schools' ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Schools</button>
+                <button onclick="window.currentAdminTab='Notifications'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentAdminTab === 'Notifications' ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Notifications</button>
+            </div>
+
+            ${window.currentAdminTab === 'Schools' ? `
+                <div class="glass-card p-6 rounded-[20px] mb-8">
+                    <h3 class="text-xl font-bold mb-4">Add New School</h3>
+                    <form onsubmit="addSchool(event)" class="flex space-x-2">
+                        <input type="text" id="new-school-name" placeholder="School Name (e.g., GPS Pethgam)" required
+                            class="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                        <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-xl shadow-md">Add School</button>
+                    </form>
+                    
+                    <h3 class="text-xl font-bold mt-8 mb-4">Existing Schools</h3>
+                    <ul class="space-y-2 max-h-48 overflow-y-auto">
+                        ${state.data.schools.map(s => `
+                            <li class="p-3 bg-white rounded-lg flex justify-between items-center border border-gray-200">
+                                <span>${s.name}</span>
+                                <span class="text-xs text-gray-500">ID: ${s.id.substring(0, 5)}...</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            ` : window.currentAdminTab === 'Notifications' ? `
+                <div class="glass-card p-6 rounded-[20px] mb-8">
+                    <h3 class="text-xl font-bold mb-4">Post New Scrolling Notification</h3>
+                    <form onsubmit="postNotification(event)">
+                        <textarea id="new-notification-message" placeholder="Type message for the scrolling ticker..." required
+                            class="w-full p-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 mb-4"></textarea>
+                        <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl shadow-md">Post Notification</button>
+                    </form>
+
+                    <h3 class="text-xl font-bold mt-8 mb-4">Recent Notifications</h3>
+                    <ul class="space-y-2 max-h-48 overflow-y-auto">
+                        ${state.data.notifications.map(n => `
+                            <li class="p-3 bg-white rounded-lg border border-gray-200 text-sm">
+                                ${n.message}
+                                <span class="block text-xs text-gray-500">${n.timestamp ? new Date(n.timestamp.seconds * 1000).toLocaleString() : 'Saving...'}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            ` : `
+                <div class="glass-card p-6 rounded-[20px] shadow-xl">
+                    <h3 class="text-2xl font-bold mb-4">Pending User Signups (${pendingUsers.length})</h3>
+                    ${pendingUsers.length === 0 ? '<p class="text-gray-500">No pending users awaiting approval. All clear!</p>' : ''}
+                    
+                    <ul class="space-y-4">
+                        ${pendingUsers.map(u => `
+                            <li class="double-shade-card p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                <div>
+                                    <p class="font-bold text-lg text-white">${u.username} (${u.role})</p>
+                                    <p class="text-yellow-100 text-sm">${u.class || 'N/A'} - ${state.data.schools.find(s => s.id === u.schoolId)?.name || 'Unknown School'}</p>
+                                </div>
+                                <div class="mt-3 sm:mt-0 flex space-x-2">
+                                    <button onclick="updateUserStatus('${u.id}', 'Approved')" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg shadow-md transition">Approve</button>
+                                    <button onclick="updateUserStatus('${u.id}', 'Rejected')" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg shadow-md transition">Reject</button>
+                                </div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `}
+        </div>
+    `;
+}
+
+/** Renders the Teacher Dashboard */
+function renderTeacherDashboard() {
+    const myAssignments = state.data.assignments.filter(a => a.teacherId === (auth.currentUser?.uid || state.user.username));
+
+    return `
+        <div class="p-6">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Teacher Dashboard</h2>
+            <p class="text-gray-500 mb-8">Welcome, ${state.user.username}!</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="double-shade-card p-6 rounded-[20px] text-white shadow-xl">
+                    <h3 class="text-xl font-bold mb-2">My Assignments</h3>
+                    <p class="text-sm">Total Uploaded: ${myAssignments.length}</p>
+                </div>
+                <div class="double-shade-card p-6 rounded-[20px] text-white shadow-xl" onclick="setView('Leaderboard')" style="cursor:pointer">
+                    <h3 class="text-xl font-bold mb-2">View Leaderboard</h3>
+                    <p class="text-sm">Check student rankings.</p>
+                </div>
+                <div class="double-shade-card p-6 rounded-[20px] text-white shadow-xl">
+                    <h3 class="text-xl font-bold mb-2">Student Submissions</h3>
+                    <p class="text-sm">View and grade work (Mock)</p>
+                </div>
+            </div>
+
+            <div class="glass-card p-6 rounded-[20px] mb-8 shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Upload New Assignment</h3>
+                <form onsubmit="addAssignment(event)">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Type</label>
+                            <select name="type" id="assignment-type" onchange="window.toggleAssignmentContent(this.value)" class="w-full p-3 border rounded-xl">
+                                <option value="pdf">PDF/Text Assignment</option>
+                                <option value="mcq">MCQ Quiz</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Class</label>
+                            <select name="class" class="w-full p-3 border rounded-xl">${classes.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Subject</label>
+                            <select name="subject" class="w-full p-3 border rounded-xl">${subjects.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Title</label>
+                            <input type="text" name="title" required placeholder="Assignment Title" class="w-full p-3 border rounded-xl">
+                        </div>
+                    </div>
+                    
+                    <div id="pdf-content" class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Assignment Content (Text/URL)</label>
+                        <textarea name="pdfUrl" placeholder="Paste assignment text or PDF URL..." class="w-full p-3 border rounded-xl h-24"></textarea>
+                    </div>
+
+                    <div id="mcq-content" class="hidden mb-4">
+                        <label class="block text-sm font-medium mb-1">MCQ Data (JSON Format)</label>
+                        <textarea name="mcqData" placeholder='[{"question": "What is 2+2?", "options": ["3", "4", "5", "6"], "answer": "4"}]' class="w-full p-3 border rounded-xl h-32"></textarea>
+                        <p class="text-xs text-red-500 mt-1">IMPORTANT: Ensure valid JSON structure for MCQs.</p>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-lg mt-2">Upload Assignment</button>
+                </form>
+            </div>
+
+            <script>
+                window.toggleAssignmentContent = function(type) {
+                    document.getElementById('pdf-content').classList.toggle('hidden', type === 'mcq');
+                    document.getElementById('mcq-content').classList.toggle('hidden', type === 'pdf');
+                };
+                // Call it once after the content is rendered
+                setTimeout(() => window.toggleAssignmentContent(document.getElementById('assignment-type')?.value || 'pdf'), 0);
+            </script>
+        </div>
+    `;
+}
+
+/** Renders the Student Dashboard */
+function renderStudentDashboard() {
+    if (!state.user) {
+        return '<div class="p-8 text-center text-red-600">User data is missing. Please log in again.</div>';
+    }
+    
+    const studentClass = state.user.class;
+    const classAssignments = state.data.assignments.filter(a => a.class === studentClass);
+    
+    const badgeIcons = {
+        Bronze: '🌟', Silver: '🪙', Gold: '🏅'
+    };
+    
+    const currentBadges = ['Bronze', 'Silver', 'Gold'].filter(b => state.user.badges.includes(b)).map(b => badgeIcons[b]).join(' ');
+
+
+    return `
+        <div class="p-6">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Student Dashboard</h2>
+            <p class="text-gray-500 mb-8">Welcome, ${state.user.username} (Class ${studentClass})!</p>
+
+            <div class="glass-card p-6 rounded-[20px] mb-8 shadow-xl">
+                <div class="grid grid-cols-3 text-center divide-x divide-gray-300">
+                    <div>
+                        <p class="text-4xl font-extrabold text-green-600">${state.user.score}</p>
+                        <p class="text-sm text-gray-500">Total Score</p>
+                    </div>
+                    <div>
+                        <p class="text-4xl font-extrabold text-yellow-600">${state.user.coins}</p>
+                        <p class="text-sm text-gray-500">Digital Coins</p>
+                    </div>
+                    <div>
+                        <p class="text-4xl">${currentBadges || 'No Badges'}</p>
+                        <p class="text-sm text-gray-500">Badges Earned</p>
+                    </div>
+                </div>
+                <button onclick="setView('Leaderboard')" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl shadow-lg mt-4">View Leaderboard</button>
+            </div>
+
+            <h3 class="text-2xl font-bold mb-4">Winter Assignments (Class ${studentClass})</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${classAssignments.map(a => `
+                    <div class="double-shade-card p-5 rounded-[20px] shadow-lg text-white">
+                        <p class="text-xs font-light">${a.class} | ${a.subject}</p>
+                        <h4 class="text-xl font-bold mb-3">${a.title}</h4>
+                        <p class="text-sm mb-4">Type: <span class="font-semibold">${a.type.toUpperCase()}</span></p>
+                        ${a.type === 'mcq' ? `
+                            <button onclick="startQuiz('${a.id}')" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg shadow-md transition">
+                                Attempt Quiz
+                            </button>
+                        ` : `
+                            <button onclick="alert('Viewing assignment: ${a.content}')" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg shadow-md transition">
+                                View Assignment
+                            </button>
+                        `}
+                    </div>
+                `).join('')}
+                ${classAssignments.length === 0 ? '<p class="col-span-full text-gray-500 p-4 text-center glass-card rounded-xl">No assignments found for Class ' + studentClass + '.</p>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+/** Renders the MCQ Quiz View */
+function renderQuizView() {
+    const assignment = state.currentAssignment;
+    if (!assignment || !assignment.content || state.quizState.currentQIndex >= assignment.content.length) {
+        return '<div class="p-8 text-center"><h2 class="text-3xl font-bold">Error Loading Quiz</h2><p>Please return to the student dashboard.</p><button onclick="setView(\'Student\')" class="mt-4 bg-blue-600 text-white py-2 px-6 rounded-xl">Go Back</button></div>';
+    }
+    
+    const qIndex = state.quizState.currentQIndex;
+    const currentQ = assignment.content[qIndex];
+    const totalQ = assignment.content.length;
+    const selectedIdx = state.quizState.selectedOption;
+    
+    return `
+        <div class="p-6 max-w-2xl mx-auto">
+            <h2 class="text-3xl font-bold mb-2">${assignment.title} Quiz</h2>
+            <p class="text-gray-600 mb-6">Question ${qIndex + 1} of ${totalQ}</p>
+
+            <div class="glass-card p-6 rounded-[20px] shadow-xl mb-6">
+                <h3 class="text-xl font-semibold mb-4">${currentQ.question}</h3>
+                
+                <div class="space-y-3">
+                    ${currentQ.options.map((option, index) => `
+                        <div onclick="selectOption(${index})" class="p-4 rounded-xl border-2 transition duration-150 cursor-pointer 
+                            ${selectedIdx === index ? 'border-blue-600 bg-blue-100 shadow-md' : 'border-gray-200 hover:bg-gray-50'}">
+                            ${option}
+                        </div>
+                    `).join('')}
+                </div>
+
+                <button onclick="submitAnswer()" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl shadow-lg mt-6" 
+                    ${selectedIdx === null ? 'disabled' : ''}>
+                    Submit Answer
+                </button>
+            </div>
+
+            <p class="text-center text-sm text-gray-500">Score: ${state.quizState.score} | Coins: ${state.quizState.coins}</p>
+        </div>
+    `;
+}
+
+/** Renders the Shared Leaderboard View */
+function renderLeaderboard() {
+    const sortedUsers = [...state.data.users]
+        .filter(u => u.role === 'Student' && u.status === 'Approved')
+        .sort((a, b) => b.score - a.score);
+
+    const rankUsers = sortedUsers.map((u, index) => ({
+        ...u,
+        rank: index + 1,
+        schoolName: state.data.schools.find(s => s.id === u.schoolId)?.name || 'N/A'
+    }));
+
+    window.currentLeaderboardTab = window.currentLeaderboardTab || 'Overall';
+
+    let filteredUsers = rankUsers;
+    if (window.currentLeaderboardTab === 'Class' && state.user?.class) {
+        filteredUsers = rankUsers.filter(u => u.class === state.user.class);
+    }
+
+    return `
+        <div class="p-6">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800 text-center">🏆 Leaderboard of Zone Wagoora 🏆</h2>
+
+            <div class="flex justify-center space-x-2 sm:space-x-4 mb-6 border-b pb-2">
+                <button onclick="window.currentLeaderboardTab='Overall'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentLeaderboardTab === 'Overall' ? 'bg-yellow-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Overall Rank</button>
+                ${state.user?.role === 'Student' ? `<button onclick="window.currentLeaderboardTab='Class'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentLeaderboardTab === 'Class' ? 'bg-yellow-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}">My Class (${state.user.class})</button>` : ''}
+                <button onclick="window.currentLeaderboardTab='Subject'; renderApp();" class="px-4 py-2 rounded-lg font-semibold transition ${window.currentLeaderboardTab === 'Subject' ? 'bg-yellow-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}">Subject-wise (Mock)</button>
+            </div>
+
+            <p class="text-sm text-center text-gray-500 mb-6">
+                Showing results for: ${window.currentLeaderboardTab === 'Class' && state.user?.class ? `Class ${state.user.class}` : window.currentLeaderboardTab === 'Subject' ? 'All Subjects (Total Score)' : 'Overall'}
+            </p>
+
+
+            <div class="glass-card p-4 rounded-[20px] shadow-xl overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                            <th class="py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                            <th class="py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">School</th>
+                            <th class="py-3 px-2 sm:px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                            <th class="py-3 px-2 sm:px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Coins</th>
+                            <th class="py-3 px-2 sm:px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Badges</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${filteredUsers.map((u, index) => {
+                            const isUser = auth.currentUser?.uid === u.id || (state.user?.username === u.username && state.user?.role === u.role);
+                            const rowClass = isUser ? 'bg-blue-50 font-bold' : index < 3 ? 'bg-yellow-50' : 'bg-white';
+                            const rankDisplay = u.rank === 1 ? '🥇' : u.rank === 2 ? '🥈' : u.rank === 3 ? '🥉' : u.rank;
+                            
+                            const badgeIcons = u.badges.map(b => {
+                                if (b === 'Gold') return '🏅';
+                                if (b === 'Silver') return '🪙'; 
+                                if (b === 'Bronze') return '🌟'; 
+                                return '';
+                            }).join('');
+
+                            return `
+                                <tr class="${rowClass} transition duration-150 hover:bg-gray-100">
+                                    <td class="py-3 px-2 sm:px-4 whitespace-nowrap text-sm text-gray-900">${rankDisplay}</td>
+                                    <td class="py-3 px-2 sm:px-4 whitespace-nowrap text-sm text-gray-900">${u.username}</td>
+                                    <td class="py-3 px-2 sm:px-4 whitespace-nowrap text-sm text-gray-900">${u.class}</td>
+                                    <td class="py-3 px-2 sm:px-4 whitespace-nowrap text-sm text-gray-900">${u.schoolName}</td>
+                                    <td class="py-3 px-2 sm:px-4 whitespace-nowrap text-sm text-right text-gray-900 font-extrabold">${u.score}</td>
+                                    <td class="py-3 px-2 sm:px-4 whitespace-nowrap text-sm text-right text-yellow-600">${u.coins}</td>
+                                    <td class="py-3 px-2 sm:px-4 whitespace-nowrap text-sm text-center">${badgeIcons}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+                ${filteredUsers.length === 0 ? '<p class="text-center py-6 text-gray-500">No students found for this filter.</p>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+/** Main rendering function that switches the view */
+function renderApp() {
+    window.renderNotifications();
+    const content = document.getElementById('main-content');
+
+    if (!content) return; // Exit if main container is missing
+
+    if (!state.isAuthReady) {
+        // Renders the loading screen image you shared
+        content.innerHTML = '<div class="text-center p-20 text-gray-500">Loading Fun Zone Data...</div>';
+        return;
+    }
+
+    let html = '';
+    
+    switch (state.view) {
+        case 'Home':
+        case 'Auth':
+        case 'Pending':
+            html = renderAuthView();
+            break;
+        case 'Admin':
+            html = renderAdminDashboard();
+            break;
+        case 'Teacher':
+            html = renderTeacherDashboard();
+            break;
+        case 'Student':
+            html = renderStudentDashboard();
+            break;
+        case 'Leaderboard':
+            html = renderLeaderboard();
+            break;
+        case 'Quiz':
+            html = renderQuizView();
+            break;
+        default:
+            html = renderAuthView();
+    }
+
+    content.innerHTML = html;
+}
+
+// ==============================================================================
+// 7. INITIALIZATION CALL
+// ==============================================================================
+
+// Execute initialization when the DOM is ready (or immediately if 'app' exists)
+if (document.getElementById('app')) {
+    initializeFirebase();
+    // Assuming createSnowflakes() is defined in another script or your HTML head
+    // createSnowflakes(); 
+}
+
+// Expose handlers globally
+window.handleLogin = handleLogin;
+window.handleSignup = handleSignup;
+window.addSchool = addSchool;
+window.postNotification = postNotification;
+
+  
+
+
+
+
+
+    
     // ==============================================================================
 // 1. FIREBASE IMPORTS
 // ==============================================================================
