@@ -142,16 +142,9 @@
         <p class="text-gray-500">Government Primary School Pethgam Wagoora | Winter Assignment Portal 2025</p>
         <p class="text-gray-600 mt-2">User ID: <span id="footer-user-id">N/A</span> | App ID: <span id="footer-app-id">N/A</span></p>
     </footer>
-   </script>
-  That's the final adjustment! You did a fantastic job finding those real keys. Now we need to put them into the correct structure and fix the imports.
-Here is the complete and corrected code block. You must replace the entire content of your existing <script type="module">...</script> tags with the code below.
-This fixes three things simultaneously:
- * Corrects the Imports (using CDN URLs).
- * Uses Your Real Keys (from the config you found).
- * Removes Redundant Code (like const app = initializeApp(firebaseConfig); which is handled inside initializeFirebase).
-🚀 Final Code Fix
-// ==============================================================================
-// 1. FIREBASE IMPORTS (FIXED CDN MODULES)
+   <script type="module">
+        // ==============================================================================
+        // 1. FIREBASE IMPORTS (FIXED CDN MODULES)
 // The browser needs the full web URL for these files to load.
 // ==============================================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"; 
