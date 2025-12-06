@@ -1,10 +1,10 @@
-// Import necessary Firebase modules
+// firebase-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js"; // 🔹 Add this
+import { getAuth } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 
-// Your web app's Firebase configuration
+// Firebase config
 export const firebaseConfig = {
   apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
   authDomain: "wap-ps-pethgam.firebaseapp.com",
@@ -19,4 +19,4 @@ export const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const auth = getAuth(app); // 🔹 Export auth for phone login
+export const auth = getAuth(app);
