@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Quiz — Zone Wagoora</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-slate-50 min-h-screen">
   <div class="max-w-3xl mx-auto p-4">
@@ -16,85 +15,138 @@
     </div>
   </div>
 
-  <script type="module">
-    import { qGetQuizMetaAndQuestions, updateStudentResultWithAttempt } from './js/app-utils.js';
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { getFirestore, doc, getDoc, collection, getDocs, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-    const school = localStorage.getItem('studentSchool');
-    const cls = localStorage.getItem('studentClass');
-    const name = localStorage.getItem('studentName');
-    const studentId = localStorage.getItem('studentId');
-    const quizId = localStorage.getItem('activeQuizId');
-    const COINS_PER_CORRECT = 5;
+  const firebaseConfig = {
+    apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
+    authDomain: "wap-ps-pethgam.firebaseapp.com",
+    databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
+    projectId: "wap-ps-pethgam",
+    storageBucket: "wap-ps-pethgam.appspot.com",
+    messagingSenderId: "430925411362",
+    appId: "1:430925411362:web:22857dee585d02fc54467b"
+  };
 
-    const quizCard = document.getElementById('quizCard');
-    const submitBtn = document.getElementById('submitBtn');
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    let questions = [];
-    let answers = {};
-    let firstAttempt = true;
+  const school = localStorage.getItem('studentSchool');
+  const cls = localStorage.getItem('studentClass');
+  const name = localStorage.getItem('studentName');
+  const studentId = localStorage.getItem('studentId');
+  const quizId = localStorage.getItem('activeQuizId'); // set when starting quiz from quiz-list
+  const COINS_PER_CORRECT = 5;
 
-    async function loadQuiz(){
-      const { quizData, questionsData } = await qGetQuizMetaAndQuestions(school, quizId);
-      if(!quizData){
-        quizCard.innerHTML = '<p class="text-red-600">Quiz not found for your school/class.</p>';
-        submitBtn.style.display = 'none';
-        return;
-      }
+  const quizCard = document.getElementById('quizCard');
+  const submitBtn = document.getElementById('submitBtn');
 
-      quizCard.innerHTML = `<h2 class="text-xl font-bold">${quizData.title}</h2>
-        <p class="text-sm text-gray-600">Subject: ${quizData.subject || '-'}</p>
-        <div id="questionsArea" class="mt-4"></div>`;
+  let questions = [];
+  let answers = {};
 
-      questions = questionsData;
-
-      const area = document.getElementById('questionsArea');
-      area.innerHTML = '';
-      questions.forEach((q,i) => {
-        const optsHtml = q.options.map((opt, idx) => {
-          return `<label class="block mb-1">
-            <input type="radio" name="q_${i}" value="${idx}" onchange="selectAns('${q.id}', ${idx})" /> ${opt}
-          </label>`;
-        }).join('');
-
-        area.innerHTML += `
-          <div class="border p-3 mb-3 rounded">
-            <div class="font-semibold">Q${i+1}. ${q.question}</div>
-            <div class="mt-2">${optsHtml}</div>
-          </div>`;
-      });
-
-      firstAttempt = await updateStudentResultWithAttempt(school, cls, studentId, quizId, {checkOnly:true}) === 0;
+  async function loadQuiz(){
+    if(!school || !quizId){
+      quizCard.innerHTML = `<p class="text-red-600">Missing quiz or school info. Go back to quiz list.</p>`;
+      submitBtn.style.display = 'none';
+      return;
     }
 
-    window.selectAns = function(qid, idx){ answers[qid] = idx; };
+    // quiz doc path: quizzes/{school}/quizSet/{quizId}
+    const quizDocRef = doc(db, 'quizzes', school, 'quizSet', quizId);
+    const quizSnap = await getDoc(quizDocRef);
+    if(!quizSnap.exists()){
+      quizCard.innerHTML = `<p class="text-red-600">Quiz not found for your school/class.</p>`;
+      submitBtn.style.display = 'none';
+      return;
+    }
+    const quizData = quizSnap.data();
 
-    submitBtn.addEventListener('click', async () => {
-      if(Object.keys(answers).length < questions.length){
-        if(!confirm('You have unanswered questions. Submit anyway?')) return;
-      }
+    // load questions subcollection
+    const qSnap = await getDocs(collection(db, 'quizzes', school, 'quizSet', quizId, 'questions'));
+    questions = [];
+    qSnap.forEach(d => questions.push({ id: d.id, ...d.data() }));
 
-      let correct = 0;
-      questions.forEach(q => {
-        const sel = answers[q.id];
-        if(typeof sel !== 'undefined' && Number(sel) === Number(q.correctIndex)) correct++;
-      });
+    quizCard.innerHTML = `<h2 class="text-xl font-bold">${quizData.title}</h2>
+      <p class="text-sm text-gray-600">Subject: ${quizData.subject || '-'}</p>
+      <div id="questionsArea" class="mt-4"></div>`;
 
-      const coinsEarned = correct * COINS_PER_CORRECT;
-
-      const res = await updateStudentResultWithAttempt(school, cls, studentId, quizId, {
-        awardIfFirstAttempt: true,
-        coinsToAdd: coinsEarned,
-        score: correct
-      });
-
-      alert(`You answered ${correct}/${questions.length} correct.\nCoins earned this attempt: ${res.coinsAdded}\nTotal coins: ${res.newTotal}`);
-
-      window.location.href = 'quiz-list.html';
+    const area = document.getElementById('questionsArea');
+    area.innerHTML = '';
+    questions.forEach((q,i) => {
+      const optsHtml = q.options.map((opt, idx) =>
+        `<label class="block mb-1"><input type="radio" name="q_${i}" value="${idx}" onchange="selectAns('${q.id}', ${idx})"> ${opt}</label>`
+      ).join('');
+      area.innerHTML += `<div class="border p-3 mb-3 rounded"><div class="font-semibold">Q${i+1}. ${q.question}</div><div class="mt-2">${optsHtml}</div></div>`;
     });
 
-    document.getElementById('cancelBtn').addEventListener('click', ()=>{ window.location.href = 'quiz-list.html'; });
+    // expose global for radio onchange
+    window.selectAns = (qid, idx) => { answers[qid] = idx; };
+  }
 
-    loadQuiz();
-  </script>
+  // update student doc with attempt; award coins only if first attempt
+  async function recordAttemptAndAward(correctCount){
+    const studRef = doc(db, 'results', school, `class${cls}`, 'students', studentId);
+    const studSnap = await getDoc(studRef);
+    if(!studSnap.exists()){
+      await setDoc(studRef, {
+        name,
+        coins: 0,
+        attempts: {},
+        bestScores: {},
+        firstAttemptAwarded: {},
+        lastAttemptAt: new Date()
+      });
+    }
+    const sSnap = await getDoc(studRef);
+    const stu = sSnap.data();
+    const attempts = stu.attempts || {};
+    const prevAttempts = attempts[quizId] || 0;
+    const isFirstAttempt = prevAttempts === 0;
+    const bestScores = stu.bestScores || {};
+    const prevBest = bestScores[quizId] || 0;
+    if(correctCount > prevBest) bestScores[quizId] = correctCount;
+    const newAttempts = { ...attempts, [quizId]: prevAttempts + 1 };
+
+    let coinsAdded = 0;
+    const fa = stu.firstAttemptAwarded || {};
+    let newCoins = stu.coins || 0;
+    if(isFirstAttempt && !fa[quizId]){
+      coinsAdded = correctCount * COINS_PER_CORRECT;
+      newCoins += coinsAdded;
+      fa[quizId] = true;
+    }
+
+    await updateDoc(studRef, {
+      attempts: newAttempts,
+      bestScores,
+      coins: newCoins,
+      firstAttemptAwarded: fa,
+      lastAttemptAt: new Date()
+    });
+
+    return { coinsAdded, newTotal: newCoins };
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    if(questions.length === 0){ alert('No questions loaded'); return; }
+    if(Object.keys(answers).length < questions.length){
+      if(!confirm('You have unanswered questions. Submit anyway?')) return;
+    }
+    let correct = 0;
+    questions.forEach(q => {
+      const sel = answers[q.id];
+      if(typeof sel !== 'undefined' && Number(sel) === Number(q.correctIndex)) correct++;
+    });
+
+    const res = await recordAttemptAndAward(correct);
+    alert(`You answered ${correct}/${questions.length} correct.\nCoins earned this attempt: ${res.coinsAdded}\nTotal coins: ${res.newTotal}`);
+    window.location.href = 'quiz-list.html';
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', ()=> window.location.href='quiz-list.html');
+
+  loadQuiz();
+</script>
 </body>
 </html>
