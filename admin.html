@@ -1,104 +1,253 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin — Zone Wagoora</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin Dashboard — Zone Wagoora</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-slate-50 min-h-screen p-4">
-  <div class="max-w-3xl mx-auto bg-white p-4 rounded shadow">
-    <h2 class="text-xl font-bold">Admin — Create / Manage Quiz</h2>
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
+    <h1 class="text-2xl font-bold mb-4">Admin Dashboard (Phone OTP)</h1>
 
-    <label class="block mt-3">Select School (UDISE)</label>
-    <input id="schoolId" class="w-full border p-2 rounded" placeholder="01022202207" />
+    <!-- AUTH UI -->
+    <div id="authArea" class="mb-4">
+      <label class="block">Admin Phone (E.164) e.g. +919876543210</label>
+      <input id="adminPhone" class="w-full border p-2 rounded mb-2" placeholder="+91..." />
+      <div id="recaptcha-container"></div>
+      <button id="sendCodeBtn" class="bg-indigo-600 text-white px-3 py-2 rounded">Send OTP</button>
 
-    <label class="block mt-3">Quiz Title</label>
-    <input id="title" class="w-full border p-2 rounded" placeholder="Quiz title"/>
-
-    <label class="block mt-3">Class</label>
-    <input id="cls" class="w-full border p-2 rounded" placeholder="5"/>
-
-    <label class="block mt-3">Subject</label>
-    <input id="subject" class="w-full border p-2 rounded" placeholder="Math"/>
-
-    <div id="questionsArea" class="mt-4"></div>
-
-    <div class="flex gap-2 mt-3">
-      <button id="addQ" class="bg-gray-200 px-3 py-2 rounded">Add Question</button>
-      <button id="saveQuiz" class="bg-green-600 text-white px-3 py-2 rounded">Save Quiz</button>
+      <div id="codeArea" class="mt-3 hidden">
+        <label class="block">Enter OTP</label>
+        <input id="otpCode" class="w-full border p-2 rounded mb-2" placeholder="123456" />
+        <button id="verifyBtn" class="bg-green-600 text-white px-3 py-2 rounded">Verify & Login</button>
+      </div>
+      <p class="text-sm text-gray-500 mt-2">Only phone numbers added to the Firestore collection <b>admins</b> may access the dashboard.</p>
     </div>
 
-    <hr class="my-4" />
-    <h3 class="font-semibold">Upload School Logo</h3>
-    <p class="text-sm text-gray-600 mb-2">Enter UDISE code and upload a PNG/JPG logo to Firebase Storage path `school_logos/{udise}.png`</p>
-    <input id="logoUdise" class="w-full border p-2 rounded mb-2" placeholder="01022202207"/>
-    <input id="logoFile" type="file" accept="image/*" class="mb-2" />
-    <button id="uploadLogo" class="bg-blue-600 text-white px-3 py-2 rounded">Upload Logo</button>
+    <!-- ADMIN UI (hidden until authenticated & authorized) -->
+    <div id="adminUI" class="hidden">
+      <h2 class="font-semibold text-lg mb-2">Create New School</h2>
+      <label>UDISE Code</label>
+      <input id="newUdise" class="w-full border p-2 rounded mb-2" placeholder="01022202207" />
+      <label>School Name</label>
+      <input id="newSchoolName" class="w-full border p-2 rounded mb-2" placeholder="Primary School ABC" />
+      <button id="createSchool" class="bg-blue-600 text-white px-3 py-2 rounded mb-4">Create School</button>
+
+      <hr class="my-4"/>
+
+      <h2 class="font-semibold text-lg mb-2">Create Quiz for a School</h2>
+      <label>Select School (UDISE)</label>
+      <select id="adminSchoolSel" class="w-full border p-2 rounded mb-2"></select>
+
+      <label>Quiz Title</label>
+      <input id="quizTitle" class="w-full border p-2 rounded mb-2" placeholder="Fractions Test" />
+      <label>Class</label>
+      <input id="quizClass" class="w-full border p-2 rounded mb-2" placeholder="5" />
+      <label>Subject</label>
+      <input id="quizSubject" class="w-full border p-2 rounded mb-2" placeholder="Math" />
+
+      <div id="questionsArea" class="mb-2"></div>
+      <div class="flex gap-2 mb-4">
+        <button id="addQBtn" class="bg-gray-200 px-3 py-2 rounded">Add Question</button>
+        <button id="saveQuizBtn" class="bg-green-600 text-white px-3 py-2 rounded">Save Quiz</button>
+      </div>
+
+      <hr class="my-4"/>
+
+      <h2 class="font-semibold text-lg mb-2">Upload School Logo</h2>
+      <label>Choose School</label>
+      <select id="logoSchool" class="w-full border p-2 rounded mb-2"></select>
+      <input id="logoFile" type="file" accept="image/*" class="mb-2">
+      <button id="uploadLogoBtn" class="bg-blue-600 text-white px-3 py-2 rounded">Upload Logo</button>
+
+      <div class="mt-6">
+        <button id="logoutBtn" class="bg-red-500 text-white px-3 py-2 rounded">Logout</button>
+      </div>
+    </div>
 
   </div>
 
-  <script type="module">
-    import { addQuizWithQuestions, uploadSchoolLogo } from './js/app-utils.js';
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, PhoneAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
-    const questionsArea = document.getElementById('questionsArea');
-    document.getElementById('addQ').addEventListener('click', addQuestionBlock);
-    document.getElementById('saveQuiz').addEventListener('click', saveQuiz);
-    document.getElementById('uploadLogo').addEventListener('click', uploadLogo);
+  const firebaseConfig = {
+    apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
+    authDomain: "wap-ps-pethgam.firebaseapp.com",
+    databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
+    projectId: "wap-ps-pethgam",
+    storageBucket: "wap-ps-pethgam.appspot.com",
+    messagingSenderId: "430925411362",
+    appId: "1:430925411362:web:22857dee585d02fc54467b"
+  };
 
-    function addQuestionBlock(){
-      const idx = questionsArea.childElementCount + 1;
-      const div = document.createElement('div');
-      div.className = 'border p-3 mb-2 rounded';
-      div.innerHTML = `
-        <label class="font-semibold">Q${idx} Text</label>
-        <input class="qtext w-full border p-1 rounded mb-1" />
-        <div class="grid grid-cols-1 gap-1">
-          <input class="opt w-full border p-1 rounded" placeholder="Option 1"/>
-          <input class="opt w-full border p-1 rounded" placeholder="Option 2"/>
-          <input class="opt w-full border p-1 rounded" placeholder="Option 3"/>
-          <input class="opt w-full border p-1 rounded" placeholder="Option 4"/>
-        </div>
-        <label class="mt-1">Correct option index (0-3)</label>
-        <input class="correctIndex w-full border p-1 rounded" placeholder="0"/>
-      `;
-      questionsArea.appendChild(div);
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+
+  // DOM
+  const adminPhone = document.getElementById('adminPhone');
+  const sendCodeBtn = document.getElementById('sendCodeBtn');
+  const codeArea = document.getElementById('codeArea');
+  const otpCode = document.getElementById('otpCode');
+  const verifyBtn = document.getElementById('verifyBtn');
+  const authArea = document.getElementById('authArea');
+  const adminUI = document.getElementById('adminUI');
+  const recaptchaContainer = document.getElementById('recaptcha-container');
+
+  // admin UI elements
+  const adminSchoolSel = document.getElementById('adminSchoolSel');
+  const createSchoolBtn = document.getElementById('createSchool');
+  const newUdise = document.getElementById('newUdise');
+  const newSchoolName = document.getElementById('newSchoolName');
+  const addQBtn = document.getElementById('addQBtn');
+  const saveQuizBtn = document.getElementById('saveQuizBtn');
+  const questionsArea = document.getElementById('questionsArea');
+  const logoSchool = document.getElementById('logoSchool');
+  const uploadLogoBtn = document.getElementById('uploadLogoBtn');
+  const logoFile = document.getElementById('logoFile');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  // Setup invisible recaptcha
+  let verifier = new RecaptchaVerifier('recaptcha-container', {
+    'size': 'invisible'
+  }, auth);
+
+  let confirmationResult = null;
+
+  sendCodeBtn.addEventListener('click', async () => {
+    const phone = adminPhone.value.trim();
+    if(!phone){ alert('Enter phone in E.164 format (e.g. +919876543210)'); return; }
+    try {
+      confirmationResult = await signInWithPhoneNumber(auth, phone, verifier);
+      alert('OTP sent to ' + phone);
+      codeArea.classList.remove('hidden');
+    } catch(err){
+      console.error('sendCode error', err);
+      alert('Failed to send OTP: ' + err.message);
     }
+  });
 
-    async function saveQuiz(){
-      const school = document.getElementById('schoolId').value.trim();
-      const title = document.getElementById('title').value.trim();
-      const cls = document.getElementById('cls').value.trim();
-      const subject = document.getElementById('subject').value.trim();
-
-      if(!school || !title || !cls){ alert('Please fill school, title and class'); return; }
-
-      const blocks = questionsArea.querySelectorAll('.border');
-      const questions = [];
-      for(const b of blocks){
-        const qtext = b.querySelector('.qtext').value;
-        const opts = Array.from(b.querySelectorAll('.opt')).map(i=>i.value);
-        const correctIndex = Number(b.querySelector('.correctIndex').value || 0);
-        if(!qtext) continue;
-        questions.push({ question: qtext, options: opts, correctIndex });
+  verifyBtn.addEventListener('click', async () => {
+    const code = otpCode.value.trim();
+    if(!code){ alert('Enter OTP'); return; }
+    try {
+      const result = await confirmationResult.confirm(code);
+      const user = result.user;
+      const phone = user.phoneNumber;
+      // check Firestore admins collection for this phone
+      const adminDoc = await getDoc(doc(db, 'admins', phone));
+      if(!adminDoc.exists()){
+        alert('This phone is not authorized as admin. Ask zone coordinator to add your number in Firestore collection "admins".');
+        await signOut(auth);
+        return;
       }
-
-      await addQuizWithQuestions(school, { title, class: cls, subject, totalQuestions: questions.length }, questions);
-      alert('Quiz saved for school: ' + school);
-      questionsArea.innerHTML = '';
-      document.getElementById('title').value = '';
-      document.getElementById('cls').value = '';
-      document.getElementById('subject').value = '';
+      // authorized
+      alert('Admin login successful: ' + phone);
+      // show admin UI
+      authArea.classList.add('hidden');
+      adminUI.classList.remove('hidden');
+      // load schools into selects
+      await refreshSchools();
+    } catch(err){
+      console.error('verify error', err);
+      alert('OTP verification failed: ' + err.message);
     }
+  });
 
-    async function uploadLogo(){
-      const udise = document.getElementById('logoUdise').value.trim();
-      const file = document.getElementById('logoFile').files[0];
-      if(!udise || !file) { alert('Enter UDISE and choose file'); return; }
-      await uploadSchoolLogo(udise, file);
-      alert('Logo uploaded to school_logos/' + udise + '.png');
+  // logout
+  logoutBtn.addEventListener('click', async () => {
+    await signOut(auth);
+    adminUI.classList.add('hidden');
+    authArea.classList.remove('hidden');
+    adminPhone.value = ''; otpCode.value = '';
+  });
+
+  // Admin: create school
+  createSchoolBtn.addEventListener('click', async () => {
+    const udise = newUdise.value.trim();
+    const name = newSchoolName.value.trim();
+    if(!udise || !name){ alert('Enter UDISE and name'); return; }
+    await setDoc(doc(db, 'schools', udise), { name });
+    alert('School added: ' + udise);
+    newUdise.value=''; newSchoolName.value='';
+    await refreshSchools();
+  });
+
+  // load schools for selects
+  async function refreshSchools(){
+    adminSchoolSel.innerHTML = '';
+    logoSchool.innerHTML = '';
+    const snap = await getDocs(collection(db, 'schools'));
+    const opts = [];
+    snap.forEach(d => {
+      const id = d.id; const data = d.data();
+      opts.push(`<option value="${id}">${id} — ${data.name}</option>`);
+    });
+    adminSchoolSel.innerHTML = opts.join('');
+    logoSchool.innerHTML = opts.join('');
+  }
+
+  // Add question block
+  addQBtn.addEventListener('click', () => {
+    const idx = questionsArea.childElementCount + 1;
+    const div = document.createElement('div');
+    div.className = 'border p-2 mb-2 rounded';
+    div.innerHTML = `
+      <label class="font-semibold">Q${idx} Text</label>
+      <input class="qtext w-full border p-1 rounded mb-1" placeholder="Question text">
+      <div class="grid grid-cols-1 gap-1 mb-1">
+        <input class="opt w-full border p-1 rounded" placeholder="Option 1">
+        <input class="opt w-full border p-1 rounded" placeholder="Option 2">
+        <input class="opt w-full border p-1 rounded" placeholder="Option 3">
+        <input class="opt w-full border p-1 rounded" placeholder="Option 4">
+      </div>
+      <label>Correct Option Index (0-3)</label>
+      <input class="correctIndex w-full border p-1 rounded" placeholder="0">
+    `;
+    questionsArea.appendChild(div);
+  });
+
+  // Save quiz
+  saveQuizBtn.addEventListener('click', async () => {
+    const school = adminSchoolSel.value;
+    const title = document.getElementById('quizTitle').value.trim();
+    const cls = document.getElementById('quizClass').value.trim();
+    const subject = document.getElementById('quizSubject').value.trim();
+    if(!school || !title || !cls){ alert('Fill school, title and class'); return; }
+
+    // create quiz doc under quizzes/{school}/quizSet/{autoId}
+    const quizRef = await addDoc(collection(db, 'quizzes', school, 'quizSet'), { title, class: cls, subject, totalQuestions: 0, active: true });
+    const blocks = questionsArea.querySelectorAll('.border');
+    let count = 0;
+    for(const b of blocks){
+      const qtext = b.querySelector('.qtext').value;
+      const opts = Array.from(b.querySelectorAll('.opt')).map(o=>o.value);
+      const correctIndex = Number(b.querySelector('.correctIndex').value || 0);
+      if(!qtext) continue;
+      await addDoc(collection(db, 'quizzes', school, 'quizSet', quizRef.id, 'questions'), { question: qtext, options: opts, correctIndex });
+      count++;
     }
-  </script>
+    // update totalQuestions
+    await setDoc(doc(db, 'quizzes', school, 'quizSet', quizRef.id), { title, class: cls, subject, totalQuestions: count, active:true });
+    alert('Quiz saved for ' + school + ' with ' + count + ' questions.');
+    questionsArea.innerHTML=''; document.getElementById('quizTitle').value=''; document.getElementById('quizClass').value=''; document.getElementById('quizSubject').value='';
+  });
+
+  // Upload logo
+  uploadLogoBtn.addEventListener('click', async () => {
+    const school = logoSchool.value;
+    const file = logoFile.files[0];
+    if(!school || !file){ alert('Select school and choose file'); return; }
+    const storageRef = ref(storage, `school_logos/${school}.png`);
+    await uploadBytes(storageRef, file);
+    alert('Logo uploaded for ' + school);
+  });
+
+</script>
 </body>
 </html>
