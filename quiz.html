@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz — Zone Wagoora</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <div class="max-w-3xl mx-auto p-4">
+    <div id="quizCard" class="bg-white p-4 rounded shadow"></div>
+    <div class="mt-4 flex gap-2">
+      <button id="submitBtn" class="bg-indigo-600 text-white px-4 py-2 rounded">Submit Quiz</button>
+      <button id="cancelBtn" class="bg-gray-200 px-4 py-2 rounded">Cancel</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { qGetQuizMetaAndQuestions, updateStudentResultWithAttempt } from './js/app-utils.js';
+
+    const school = localStorage.getItem('studentSchool');
+    const cls = localStorage.getItem('studentClass');
+    const name = localStorage.getItem('studentName');
+    const studentId = localStorage.getItem('studentId');
+    const quizId = localStorage.getItem('activeQuizId');
+    const COINS_PER_CORRECT = 5;
+
+    const quizCard = document.getElementById('quizCard');
+    const submitBtn = document.getElementById('submitBtn');
+
+    let questions = [];
+    let answers = {};
+    let firstAttempt = true;
+
+    async function loadQuiz(){
+      const { quizData, questionsData } = await qGetQuizMetaAndQuestions(school, quizId);
+      if(!quizData){
+        quizCard.innerHTML = '<p class="text-red-600">Quiz not found for your school/class.</p>';
+        submitBtn.style.display = 'none';
+        return;
+      }
+
+      quizCard.innerHTML = `<h2 class="text-xl font-bold">${quizData.title}</h2>
+        <p class="text-sm text-gray-600">Subject: ${quizData.subject || '-'}</p>
+        <div id="questionsArea" class="mt-4"></div>`;
+
+      questions = questionsData;
+
+      const area = document.getElementById('questionsArea');
+      area.innerHTML = '';
+      questions.forEach((q,i) => {
+        const optsHtml = q.options.map((opt, idx) => {
+          return `<label class="block mb-1">
+            <input type="radio" name="q_${i}" value="${idx}" onchange="selectAns('${q.id}', ${idx})" /> ${opt}
+          </label>`;
+        }).join('');
+
+        area.innerHTML += `
+          <div class="border p-3 mb-3 rounded">
+            <div class="font-semibold">Q${i+1}. ${q.question}</div>
+            <div class="mt-2">${optsHtml}</div>
+          </div>`;
+      });
+
+      firstAttempt = await updateStudentResultWithAttempt(school, cls, studentId, quizId, {checkOnly:true}) === 0;
+    }
+
+    window.selectAns = function(qid, idx){ answers[qid] = idx; };
+
+    submitBtn.addEventListener('click', async () => {
+      if(Object.keys(answers).length < questions.length){
+        if(!confirm('You have unanswered questions. Submit anyway?')) return;
+      }
+
+      let correct = 0;
+      questions.forEach(q => {
+        const sel = answers[q.id];
+        if(typeof sel !== 'undefined' && Number(sel) === Number(q.correctIndex)) correct++;
+      });
+
+      const coinsEarned = correct * COINS_PER_CORRECT;
+
+      const res = await updateStudentResultWithAttempt(school, cls, studentId, quizId, {
+        awardIfFirstAttempt: true,
+        coinsToAdd: coinsEarned,
+        score: correct
+      });
+
+      alert(`You answered ${correct}/${questions.length} correct.\nCoins earned this attempt: ${res.coinsAdded}\nTotal coins: ${res.newTotal}`);
+
+      window.location.href = 'quiz-list.html';
+    });
+
+    document.getElementById('cancelBtn').addEventListener('click', ()=>{ window.location.href = 'quiz-list.html'; });
+
+    loadQuiz();
+  </script>
+</body>
+</html>
