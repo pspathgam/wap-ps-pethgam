@@ -1,0 +1,3 @@
+body { font-family: 'Inter', sans-serif; }
+input, select, button { outline: none; }
+button:hover { opacity: 0.9; cursor: pointer; }
