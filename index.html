@@ -1,127 +1,635 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Zone Wagoora — Login</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government Primary School Pethgam Wagoora - Official Homepage</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/menu.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-slate-50 min-h-screen">
-  <div class="max-w-xl mx-auto p-4">
-    <header class="bg-indigo-700 text-white rounded p-4 text-center mb-4">
-      <h1 class="text-2xl font-semibold">Zone Wagoora MCQ Portal</h1>
-      <p class="text-sm">Winter Assignments — Choose School, Class & Start</p>
+<body>
+
+    <header id="site-header">
+        
+        <div class="top-strip">
+            <div class="container top-strip-content">
+                <ul class="contact-info">
+                    <li><i class="fas fa-phone"></i> <span><a href="tel:+919586449881">+91 95864 49881</a></span></li>
+                    <li><i class="fas fa-envelope"></i> <span><a href="mailto:info@gps-pethgam.edu">info@gps-pethgam.edu</a></span></li>
+                    <li><i class="fas fa-map-marker-alt"></i> <span>Pethgam, Wagoora, Baramulla, J&K (193109)</span></li>
+                </ul>
+                <div class="utility-links">
+                    <div class="language-switcher">
+                        <select aria-label="Language Switcher">
+                            <option value="en">🌐 English</option>
+                            <option value="ur">اردو (Urdu)</option>
+                            <option value="ks">کٲشُر (Kashmiri)</option>
+                        </select>
+                    </div>
+                    <a href="#" class="search-icon" aria-label="Search"><i class="fas fa-search"></i></a>
+                    <a href="#" class="notification-icon" aria-label="Notifications"><i class="fas fa-bell"></i><span class="badge">3</span></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-header-bar">
+            <div class="container header-content">
+                <a href="index.html" class="logo-link">
+                    <img src="images/logo-gps.png" alt="Government Primary School Pethgam Wagoora Logo" class="school-logo">
+                </a>
+                <div class="school-title">
+                    <h1>Government Primary School</h1>
+                    <h2>Pethgam Wagoora, Baramulla (J&K)</h2>
+                    <p class="motto">"Knowledge is Power, Education is Freedom."</p>
+                </div>
+            </div>
+        </div>
+        
+        <nav id="main-nav">
+            <div class="container nav-content">
+                <ul class="menu-list">
+                    <li><a href="index.html">Home</a></li>
+                    
+                    <li class="dropdown">
+                        <a href="#">About Us <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="vision-mission.html">Vision, Mission</a></li>
+                            <li><a href="history.html">School History</a></li>
+                            <li><a href="infrastructure.html">Infrastructure</a></li>
+                            <li><a href="smc-committee.html">SMC Committee</a></li>
+                        </ul>
+                    </li>
+                    
+                    <li class="dropdown">
+                        <a href="#">Academics <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="teachers.html">Teachers</a></li>
+                            <li><a href="class-subjects.html">Classwise Subjects</a></li>
+                            <li><a href="syllabus.html">Syllabus</a></li>
+                            <li><a href="time-table.html">Time Table</a></li>
+                            <li><a href="assignments.html">Homework / Assignments</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="dropdown">
+                        <a href="#">Students <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="student-login.html">Student Login</a></li>
+                            <li><a href="promotion-list.html">Student Promotion List</a></li>
+                            <li><a href="class-students.html">Class-wise Students</a></li>
+                            <li><a href="id-card-generator.html">ID Card Generator</a></li>
+                        </ul>
+                    </li>
+                    
+                    <li class="dropdown">
+                        <a href="#">Admissions <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="admission-rules.html">Admission Rules</a></li>
+                            <li><a href="admission-form-download.html">Admission Form (Download)</a></li>
+                            <li><a href="online-admission.html">Online Form</a></li>
+                        </ul>
+                    </li>
+                    
+                    <li class="dropdown">
+                        <a href="#">Results <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="class-results.html">Class-wise Results</a></li>
+                            <li><a href="pdf-marksheets.html">PDF Mark Sheets</a></li>
+                        </ul>
+                    </li>
+                    
+                    <li class="dropdown">
+                        <a href="#">MDM <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="mdm-statement.html">Monthly MDM Statement</a></li>
+                            <li><a href="mdm-menu.html">Menu Plan</a></li>
+                            <li><a href="mdm-uptake.html">Daily MDM Uptake</a></li>
+                        </ul>
+                    </li>
+                    
+                    <li class="dropdown">
+                        <a href="#">Gallery <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="photo-gallery.html">Photo Gallery</a></li>
+                            <li><a href="video-gallery.html">Video Gallery</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="dropdown">
+                        <a href="#">Staff <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="teacher-directory.html">Teacher Directory</a></li>
+                            <li><a href="staff-profiles.html">Staff Profiles</a></li>
+                            <li><a href="attendance-staff.html">Attendance</a></li>
+                        </ul>
+                    </li>
+                    
+                    <li class="dropdown">
+                        <a href="#">Downloads <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="download-bonafide.html">Bonafide Certificate</a></li>
+                            <li><a href="download-dob.html">DOB Certificate</a></li>
+                            <li><a href="download-duty.html">Duty Certificate</a></li>
+                            <li><a href="mdm-reports.html">MDM Reports</a></li>
+                            <li><a href="download-admission-pdf.html">Admission Form PDF</a></li>
+                        </ul>
+                    </li>
+                    
+                    <li class="dropdown">
+                        <a href="#">Contact <i class="fas fa-chevron-down"></i></a>
+                        <ul class="submenu">
+                            <li><a href="contact-form.html">Contact Form</a></li>
+                            <li><a href="google-map.html">Google Map</a></li>
+                        </ul>
+                    </li>
+                    
+                    <li class="dropdown admin-panel-link">
+                        <a href="#" class="btn btn-login admin">Admin Panel <i class="fas fa-user-lock"></i></a>
+                        <ul class="submenu right-aligned">
+                            <li><a href="admin-login.html">Admin Login</a></li>
+                            <li><a href="teacher-login.html">Teacher Login</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </nav>
     </header>
 
-    <main class="bg-white p-4 rounded shadow">
-      <label class="block mb-1 font-medium">Select School</label>
-      <select id="studentSchool" class="w-full border p-2 rounded mb-3">
-        <option value="">Loading schools...</option>
-      </select>
+    <main>
+        <section id="hero-section" class="full-width-banner">
+            <div class="slideshow-container">
+                <img src="images/hero-slide1.jpg" alt="School Campus View 1" class="hero-slide active">
+                <div class="overlay">
+                    <div class="hero-content container">
+                        <div class="logo-motto">
+                            <h1>Government Primary School Pethgam Wagoora</h1>
+                            <p class="motto">Nurturing young minds in the heart of Wagoora.</p>
+                        </div>
+                        <div class="animated-text">
+                            <h2>Excellence in Primary Education</h2>
+                            <p>Admissions are now open for the new academic session.</p>
+                        </div>
+                        <div class="admissions-popup">
+                            📢 Admissions Open! Last date to apply: March 31st.
+                        </div>
+                        <div class="quick-actions">
+                            <a href="online-admission.html" class="btn btn-hero btn-primary"><i class="fas fa-user-graduate"></i> Apply for Admission</a>
+                            <a href="academic-calendar.html" class="btn btn-hero btn-secondary"><i class="fas fa-book-open"></i> Academic Calendar</a>
+                            <a href="photo-gallery.html" class="btn btn-hero btn-tertiary"><i class="fas fa-camera"></i> Visit Gallery</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-      <div class="text-center mb-3">
-        <img id="schoolLogo" class="w-36 mx-auto hidden" alt="school logo"/>
-      </div>
+        <section id="notification-ticker" class="ticker-bar">
+            <div class="container ticker-content">
+                <span class="ticker-label">📢 Notices:</span>
+                <div class="ticker-items">
+                    <a href="pdfs/notice1.pdf" class="ticker-item high-priority">Holiday on Dec 15th for local festival.</a>
+                    <a href="pdfs/circular-exam.pdf" class="ticker-item medium-priority">Term-I Exam Time Table released. Click to download.</a>
+                    <a href="pdfs/event-sports.pdf" class="ticker-item low-priority">Annual Day Function rehearsal schedule posted.</a>
+                </div>
+            </div>
+        </section>
 
-      <label class="block mb-1 font-medium">Select Class</label>
-      <select id="studentClass" class="w-full border p-2 rounded mb-3">
-        <option value="">Select Class</option>
-        <option>1</option><option>2</option><option>3</option><option>4</option>
-        <option>5</option><option>6</option><option>7</option><option>8</option>
-      </select>
+        <div class="content-wrapper container">
+            
+            <section id="principal-message" class="section-padding">
+                <div class="section-header">
+                    <h2>Message From The Head of School</h2>
+                </div>
+                <div class="message-content">
+                    <img src="images/principal.jpg" alt="Head of School Photo" class="principal-photo">
+                    <div class="message-text">
+                        <p class="welcome-line">"It is my pleasure to welcome you to Government Primary School Pethgam Wagoora, where every child is valued."</p>
+                        <p class="welcome-line">"We strive for excellence in foundational learning and holistic growth."</p>
+                        <a href="principal-full-message.html" class="btn btn-readmore">Read More <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </section>
 
-      <label class="block mb-1 font-medium">Student Name</label>
-      <input id="studentName" class="w-full border p-2 rounded mb-3" placeholder="Enter name" />
+            <section id="about-school" class="section-padding">
+                <div class="section-header">
+                    <h2>Discover GPS Pethgam Wagoora</h2>
+                    <p>Our commitment to excellence in primary education.</p>
+                </div>
+                <div class="about-grid">
+                    <div class="about-card vision">
+                        <i class="fas fa-lightbulb"></i>
+                        <h3>Vision</h3>
+                        <p>To establish a foundation of lifelong learning and ethical citizenship.</p>
+                    </div>
+                    <div class="about-card mission">
+                        <i class="fas fa-bullseye"></i>
+                        <h3>Mission</h3>
+                        <p>Delivering quality, accessible, and inclusive primary education for all children in the Pethgam area.</p>
+                    </div>
+                    <div class="about-card infrastructure">
+                        <i class="fas fa-building"></i>
+                        <h3>Infrastructure</h3>
+                        <p>Safe, well-lit classrooms, clean facilities, and a dedicated play area.</p>
+                    </div>
+                    <div class="about-card achievements">
+                        <i class="fas fa-trophy"></i>
+                        <h3>Achievements</h3>
+                        <p>Highest student retention rate in the Wagoora zone.</p>
+                    </div>
+                    <div class="about-card facilities">
+                        <i class="fas fa-book-reader"></i>
+                        <h3>Key Facilities</h3>
+                        <ul>
+                            <li>Basic Smart Classes</li>
+                            <li>Small Library Corner</li>
+                            <li>Dedicated Play Area</li>
+                        </ul>
+                    </div>
+                    <div class="about-card awards">
+                        <i class="fas fa-award"></i>
+                        <h3>Awards</h3>
+                        <p>Recipient of the 'Clean School Award' by the District Administration.</p>
+                    </div>
+                </div>
+            </section>
+        </div> <section id="quick-info-boxes" class="full-width-bg section-padding">
+            <div class="container">
+                <div class="section-header white-text">
+                    <h2>Quick Resources</h2>
+                    <p>Access essential school information instantly.</p>
+                </div>
+                <div class="info-cards-grid">
+                    <a href="school-calendar.html" class="info-card calendar">
+                        <i class="fas fa-calendar-alt"></i>
+                        <h3>School Calendar</h3>
+                    </a>
+                    <a href="downloads.html" class="info-card downloads">
+                        <i class="fas fa-download"></i>
+                        <h3>Downloads</h3>
+                    </a>
+                    <a href="assignments.html" class="info-card homework">
+                        <i class="fas fa-pencil-alt"></i>
+                        <h3>Homework</h3>
+                    </a>
+                    <a href="mdm-uptake.html" class="info-card mdm">
+                        <i class="fas fa-utensils"></i>
+                        <h3>Mid-Day Meal</h3>
+                    </a>
+                    <a href="class-results.html" class="info-card results">
+                        <i class="fas fa-chart-bar"></i>
+                        <h3>Result Panel</h3>
+                    </a>
+                    <a href="student-login.html" class="info-card attendance">
+                        <i class="fas fa-clipboard-check"></i>
+                        <h3>Attendance</h3>
+                    </a>
+                    <a href="certificates-request.html" class="info-card certificates">
+                        <i class="fas fa-certificate"></i>
+                        <h3>Certificates</h3>
+                    </a>
+                    <a href="student-profiles.html" class="info-card profiles">
+                        <i class="fas fa-id-card"></i>
+                        <h3>Student Profiles</h3>
+                    </a>
+                </div>
+            </div>
+        </section>
+        
+        <div class="content-wrapper container">
+            
+            <section id="gallery-section" class="section-padding">
+                <div class="section-header">
+                    <h2>Our Gallery</h2>
+                    <p>Memories from GPS Pethgam Wagoora.</p>
+                </div>
+                <div class="gallery-content">
+                    <div class="photo-scroll-gallery">
+                        <img src="images/gallery/photo1.jpg" alt="Event Photo 1" loading="lazy">
+                        <img src="images/gallery/photo2.jpg" alt="Event Photo 2" loading="lazy">
+                        <img src="images/gallery/photo3.jpg" alt="Event Photo 3" loading="lazy">
+                        <a href="photo-gallery.html" class="gallery-more-card">View All Photos <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                    <div class="video-preview-box">
+                        <h3>School Highlights Video</h3>
+                        <div class="video-embed-wrapper">
+                            <iframe width="560" height="315" src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="School Highlights Video"></iframe>
+                        </div>
+                    </div>
+                </div>
+                <div class="event-albums-section">
+                    <h3>Explore Event Albums</h3>
+                    <ul class="album-list">
+                        <li><a href="album-independence-day.html">Independence Day 2025</a></li>
+                        <li><a href="album-enrollment-drive.html">New Enrollment Drive</a></li>
+                    </ul>
+                </div>
+            </section>
 
-      <div class="flex gap-2">
-        <button id="enterBtn" class="w-full bg-indigo-600 text-white p-2 rounded">Enter Portal</button>
-      </div>
+            <section id="news-events" class="section-padding">
+                <div class="section-header">
+                    <h2>News & Events</h2>
+                </div>
+                <div class="news-events-grid">
+                    <div class="upcoming-events">
+                        <h3>Upcoming Events</h3>
+                        <div class="event-slider">
+                            <div class="event-item"><span class="event-date">10 Jan</span><h4>PTA Meeting</h4></div>
+                            <div class="event-item"><span class="event-date">25 Jan</span><h4>Republic Day Celebrations</h4></div>
+                        </div>
+                        <a href="#" class="btn btn-viewall">View All Events</a>
+                    </div>
+                    <div class="latest-news">
+                        <h3>Latest News & Circulars</h3>
+                        <ul class="news-list">
+                            <li><span class="news-date">[05/12/2025]</span> <a href="#">New Teaching Methodology Workshop Completed.</a></li>
+                            <li><span class="news-date">[01/12/2025]</span> <a href="circulars/mdm-change.pdf">Circular: MDM Menu Change for Winter Season.</a></li>
+                        </ul>
+                        <a href="#" class="btn btn-viewall">View All News</a>
+                    </div>
+                    <div class="press-clips">
+                        <h3>Press Clips</h3>
+                        <ul>
+                            <li><a href="#">The Daily Awaaz: GPS Pethgam student tops district level competition.</a></li>
+                            <li><a href="#">Village News: Successful implementation of MDM scheme.</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
 
-      <p class="mt-4 text-xs text-gray-500">Note: If a school is missing ask your zone coordinator to add it via the Admin panel.</p>
-    </main>
-  </div>
+            <section id="stats-counter" class="section-padding full-width-bg dark-bg">
+                <div class="container">
+                    <div class="stats-grid">
+                        <div class="stat-item"><span class="stat-number" data-target="150">0</span><p>Students Enrolled</p></div>
+                        <div class="stat-item"><span class="stat-number" data-target="8">0</span><p>Dedicated Teachers</p></div>
+                        <div class="stat-item"><span class="stat-number" data-target="10">0<                    </li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+                <div class="admin-panel-links">
+                    <a href="admin-login.html" class="btn btn-login admin">Admin Login</a>
+                    <a href="teacher-login.html" class="btn btn-login teacher">Teacher Login</a>
+                </div>
+            </div>
+        </nav>
+    </header>
 
-  <!-- Firebase + logic -->
-  <script type="module">
-    // ----- Firebase config (use your project's config) -----
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-    import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+    <main>
+        <section id="hero-section" class="full-width-banner">
+            <div class="slideshow-container">
+                <img src="images/hero-slide1.jpg" alt="Campus View 1" class="hero-slide active">
+                <div class="overlay">
+                    <div class="hero-content container">
+                        <div class="logo-motto">
+                            <img src="images/logo-white.png" alt="School Logo">
+                            <h1>Excellence Through Education</h1>
+                        </div>
+                        <div class="animated-text">
+                            <h2>Welcome to [School Name]</h2>
+                            <p>Nurturing young minds for a brighter future.</p>
+                        </div>
+                        <div class="admissions-popup">
+                            📢 Admissions Open for the current session!
+                        </div>
+                        <div class="quick-actions">
+                            <a href="online-admission.html" class="btn btn-hero btn-primary"><i class="fas fa-user-graduate"></i> Admission</a>
+                            <a href="academic-calendar.html" class="btn btn-hero btn-secondary"><i class="fas fa-book-open"></i> Academic Calendar</a>
+                            <a href="photo-gallery.html" class="btn btn-hero btn-tertiary"><i class="fas fa-camera"></i> Gallery</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCBLLmzxVYuivT15HBPPSxMoS2OzojRgJM",
-      authDomain: "wap-ps-pethgam.firebaseapp.com",
-      databaseURL: "https://wap-ps-pethgam-default-rtdb.firebaseio.com",
-      projectId: "wap-ps-pethgam",
-      storageBucket: "wap-ps-pethgam.appspot.com",
-      messagingSenderId: "430925411362",
-      appId: "1:430925411362:web:22857dee585d02fc54467b"
-    };
+        <section id="notification-ticker" class="ticker-bar">
+            <div class="container ticker-content">
+                <span class="ticker-label">📢 Notices:</span>
+                <div class="ticker-items">
+                    <a href="pdfs/notice1.pdf" class="ticker-item high-priority">Last day for fee submission is Dec 31.</a>
+                    <a href="pdfs/circular-exam.pdf" class="ticker-item medium-priority">Exam schedule for Class 10 is released.</a>
+                    <a href="pdfs/event-sports.pdf" class="ticker-item low-priority">Annual Sports Meet on Jan 15.</a>
+                </div>
+            </div>
+        </section>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
+        <div class="content-wrapper container">
+            
+            <section id="principal-message" class="section-padding">
+                <div class="section-header">
+                    <h2>Message From The Principal</h2>
+                </div>
+                <div class="message-content">
+                    <img src="images/principal.jpg" alt="Principal's Photo" class="principal-photo">
+                    <div class="message-text">
+                        <p class="welcome-line">"We are committed to providing a stimulating environment where students can achieve their full potential and grow into responsible citizens."</p>
+                        <p class="welcome-line">"Our dedicated staff and state-of-the-art infrastructure support holistic development."</p>
+                        <a href="principal-full-message.html" class="btn btn-readmore">Read More <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </section>
 
-    // DOM
-    const selSchool = document.getElementById('studentSchool');
-    const schoolLogo = document.getElementById('schoolLogo');
-    const enterBtn = document.getElementById('enterBtn');
+            <section id="about-school" class="section-padding">
+                <div class="section-header">
+                    <h2>Why Choose Us?</h2>
+                    <p>Learn about the foundations that make our school excellent.</p>
+                </div>
+                <div class="about-grid">
+                    <div class="about-card vision">
+                        <i class="fas fa-lightbulb"></i>
+                        <h3>Our Vision</h3>
+                        <p>To be a beacon of light, guiding students to a future of success and innovation.</p>
+                    </div>
+                    <div class="about-card mission">
+                        <i class="fas fa-bullseye"></i>
+                        <h3>Our Mission</h3>
+                        <p>To provide quality education, focusing on academic, social, and emotional growth.</p>
+                    </div>
+                    <div class="about-card infrastructure">
+                        <i class="fas fa-building"></i>
+                        <h3>Infrastructure</h3>
+                        <p>Modern classrooms, science labs, and a fully digital library.</p>
+                    </div>
+                    <div class="about-card achievements">
+                        <i class="fas fa-trophy"></i>
+                        <h3>Achievements</h3>
+                        <p>Consistent top-ranking in regional and national competitions.</p>
+                    </div>
+                    <div class="about-card facilities">
+                        <i class="fas fa-laptop-code"></i>
+                        <h3>Facilities</h3>
+                        <ul>
+                            <li>Smart Classes</li>
+                            <li>Library</li>
+                            <li>Play Area</li>
+                        </ul>
+                    </div>
+                    <div class="about-card awards">
+                        <i class="fas fa-award"></i>
+                        <h3>Awards</h3>
+                        <p>Recipient of the 'Best School in Region' award for 5 consecutive years.</p>
+                    </div>
+                </div>
+            </section>
+        </div> <section id="quick-info-boxes" class="full-width-bg section-padding">
+            <div class="container">
+                <div class="section-header white-text">
+                    <h2>Quick Links & Tools</h2>
+                    <p>Access essential school resources instantly.</p>
+                </div>
+                <div class="info-cards-grid">
+                    <a href="school-calendar.html" class="info-card calendar">
+                        <i class="fas fa-calendar-alt"></i>
+                        <h3>School Calendar</h3>
+                    </a>
+                    <a href="downloads.html" class="info-card downloads">
+                        <i class="fas fa-download"></i>
+                        <h3>Downloads</h3>
+                    </a>
+                    <a href="assignments.html" class="info-card homework">
+                        <i class="fas fa-pencil-alt"></i>
+                        <h3>Homework / Assignments</h3>
+                    </a>
+                    <a href="mdm-uptake.html" class="info-card mdm">
+                        <i class="fas fa-utensils"></i>
+                        <h3>Mid-Day Meal</h3>
+                    </a>
+                    <a href="class-results.html" class="info-card results">
+                        <i class="fas fa-chart-bar"></i>
+                        <h3>Result Panel</h3>
+                    </a>
+                    <a href="student-login.html" class="info-card attendance">
+                        <i class="fas fa-clipboard-check"></i>
+                        <h3>Attendance</h3>
+                    </a>
+                    <a href="certificates-request.html" class="info-card certificates">
+                        <i class="fas fa-certificate"></i>
+                        <h3>Certificates</h3>
+                    </a>
+                    <a href="student-profiles.html" class="info-card profiles">
+                        <i class="fas fa-id-card"></i>
+                        <h3>Student Profiles</h3>
+                    </a>
+                </div>
+            </div>
+        </section>
+        
+        <div class="content-wrapper container">
+            <section id="gallery-section" class="section-padding">
+                <div class="section-header">
+                    <h2>School Memories</h2>
+                    <p>Glimpses of life at [School Name].</p>
+                </div>
+                
+                <div class="gallery-content">
+                    <div class="photo-scroll-gallery">
+                        <img src="images/gallery/photo1.jpg" alt="Event Photo 1" loading="lazy">
+                        <img src="images/gallery/photo2.jpg" alt="Event Photo 2" loading="lazy">
+                        <img src="images/gallery/photo3.jpg" alt="Event Photo 3" loading="lazy">
+                        <img src="images/gallery/photo4.jpg" alt="Event Photo 4" loading="lazy">
+                        <a href="photo-gallery.html" class="gallery-more-card">View All Photos <i class="fas fa-arrow-right"></i></a>
+                    </div>
 
-    // load schools from Firestore 'schools' collection
-    async function loadSchools(){
-      try {
-        const snap = await getDocs(collection(db, 'schools'));
-        selSchool.innerHTML = '<option value=\"\">Select Your School</option>';
-        snap.forEach(doc => {
-          const data = doc.data();
-          // doc.id expected to be UDISE code or unique id
-          const id = doc.id;
-          const name = data.name || (data.udise ? `${data.udise} — ${data.name}` : id);
-          const opt = document.createElement('option');
-          opt.value = id;
-          opt.textContent = `${id} — ${data.name || 'Unnamed School'}`;
-          selSchool.appendChild(opt);
-        });
-      } catch(err){
-        console.error('loadSchools error', err);
-        selSchool.innerHTML = '<option value=\"\">(failed to load schools)</option>';
-      }
-    }
+                    <div class="video-preview-box">
+                        <h3>Our School in Action</h3>
+                        <div class="video-embed-wrapper">
+                            <iframe width="560" height="315" src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="School Highlights Video"></iframe>
+                        </div>
+                    </div>
+                </div>
 
-    selSchool.addEventListener('change', async () => {
-      const udise = selSchool.value;
-      if(!udise){ schoolLogo.classList.add('hidden'); schoolLogo.src = ''; return; }
-      try {
-        const url = await getDownloadURL(ref(storage, `school_logos/${udise}.png`));
-        schoolLogo.src = url;
-        schoolLogo.classList.remove('hidden');
-      } catch(e){
-        // try jpg
-        try {
-          const url2 = await getDownloadURL(ref(storage, `school_logos/${udise}.jpg`));
-          schoolLogo.src = url2; schoolLogo.classList.remove('hidden');
-        } catch {
-          schoolLogo.classList.add('hidden');
-        }
-      }
-    });
+                <div class="event-albums-section">
+                    <h3>Explore Event Albums</h3>
+                    <ul class="album-list">
+                        <li><a href="album-annual-day.html">Annual Day 2025</a></li>
+                        <li><a href="album-science-fair.html">Science Fair 2025</a></li>
+                        <li><a href="album-sports-meet.html">Sports Meet 2024</a></li>
+                        <li><a href="photo-gallery.html">More Albums...</a></li>
+                    </ul>
+                </div>
+            </section>
 
-    enterBtn.addEventListener('click', () => {
-      const school = selSchool.value;
-      const cls = document.getElementById('studentClass').value;
-      const name = document.getElementById('studentName').value.trim();
-      if(!school || !cls || !name){ alert('Please fill school, class and name'); return; }
-      // simple id (UDISE_class_name timestamp) - safe for collisions
-      const id = `${school}_${cls}_${name.replace(/\s+/g,'_')}_${Date.now()}`;
-      localStorage.setItem('studentSchool', school);
-      localStorage.setItem('studentClass', cls);
-      localStorage.setItem('studentName', name);
-      localStorage.setItem('studentId', id);
-      window.location.href = 'quiz-list.html';
-    });
+            <section id="news-events" class="section-padding">
+                <div class="section-header">
+                    <h2>Latest Happenings</h2>
+                    <p>Stay updated with our news and upcoming events.</p>
+                </div>
+                <div class="news-events-grid">
+                    
+                    <div class="upcoming-events">
+                        <h3>Upcoming Events</h3>
+                        <div class="event-slider">
+                            <div class="event-item">
+                                <span class="event-date">10 Dec</span>
+                                <h4>Parent-Teacher Meeting</h4>
+                                <p>Mandatory meeting for all parents.</p>
+                                <a href="#">Details</a>
+                            </div>
+                            <div class="event-item">
+                                <span class="event-date">20 Dec</span>
+                                <h4>Winter Carnival</h4>
+                                <p>Fun, food, and games for the whole school!</p>
+                                <a href="#">Details</a>
+                            </div>
+                        </div>
+                        <a href="#" class="btn btn-viewall">View All Events</a>
+                    </div>
 
-    // init
-    loadSchools();
-  </script>
-</body>
-</html>
+                    <div class="latest-news">
+                        <h3>Latest News & Circulars</h3>
+                        <ul class="news-list">
+                            <li><span class="news-date">[05/12/2025]</span> <a href="#">New Computer Lab Inaugurated.</a></li>
+                            <li><span class="news-date">[01/12/2025]</span> <a href="circulars/holiday.pdf">Circular: Winter Holidays Announcement.</a></li>
+                            <li><span class="news-date">[28/11/2025]</span> <a href="#">School Cricket Team Wins Zonal Trophy.</a></li>
+                        </ul>
+                        <a href="#" class="btn btn-viewall">View All News</a>
+                    </div>
+
+                    <div class="press-clips">
+                        <h3>Press Clips</h3>
+                        <p>Our school featured in local media.</p>
+                        <ul>
+                            <li><a href="#">The Daily Times: Top results for [School Name] students.</a></li>
+                            <li><a href="#">Local Gazette: Eco-Club drives a successful tree plantation.</a></li>
+                        </ul>
+                    </div>
+
+                </div>
+            </section>
+
+            <section id="stats-counter" class="section-padding full-width-bg dark-bg">
+                <div class="container">
+                    <div class="section-header white-text">
+                        <h2>Our Success by the Numbers</h2>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-number" data-target="2500">0</span>
+                            <p>Students Enrolled</p>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-target="95">0</span>
+                            <p>Qualified Teachers</p>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-target="150">0</span>
+                            <p>Awards Won</p>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-target="25">0</span>
+                            <p>Years of Excellence</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="featured-programs" class="section-padding">
+                <div class="section-header">
+                    <h2>Our Special Programs<
+                                              
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                                    
+                                            
