@@ -695,7 +695,281 @@
                         <div class="stat-label">Active Subjects</div>
                     </div>
                 </div>
-    
+                <div class="subjects-section">
+                    <h2 class="section-title">📖 MY SUBJECTS</h2>
+                    <div class="subjects-grid" id="subjects-grid"></div>
+                </div>
+
+                <div class="leaderboard">
+                    <h2 class="section-title">🏆 CLASS LEADERBOARD</h2>
+                    <div id="leaderboard-list"></div>
+                </div>
+            </div>
+
+            <!-- QUIZ VIEW -->
+            <div id="quiz-view" class="hidden">
+                <div class="quiz-container">
+                    <div class="quiz-header">
+                        <button class="icon-btn" onclick="exitQuiz()">← Back</button>
+                        <div class="timer">⏱️ <span id="quiz-timer">60</span>s</div>
+                        <div class="question-counter" id="question-counter">1/10</div>
+                    </div>
+
+                    <div class="question-text" id="question-text"></div>
+
+                    <div class="options-container" id="options-container"></div>
+
+                    <button class="btn btn-primary" id="next-question-btn" onclick="nextQuestion()">NEXT QUESTION</button>
+                    <button class="btn btn-primary hidden" id="finish-quiz-btn" onclick="finishQuiz()">FINISH QUIZ</button>
+                </div>
+            </div>
+
+            <!-- STUDY MATERIAL VIEW -->
+            <div id="material-view" class="hidden">
+                <button class="icon-btn mb-2" onclick="backToSubjects()">← Back to Subjects</button>
+                <div id="material-container"></div>
+            </div>
+
+            <!-- TEACHER VIEW -->
+            <div id="teacher-view" class="hidden">
+                <div class="teacher-panel">
+                    <h2 class="section-title">👨‍🏫 TEACHER PANEL</h2>
+
+                    <div class="dashboard-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">📝</div>
+                            <div class="stat-value" id="teacher-questions">0</div>
+                            <div class="stat-label">Questions Added</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-value" id="teacher-students">0</div>
+                            <div class="stat-label">Students</div>
+                        </div>
+                    </div>
+
+                    <div class="add-question-form">
+                        <h3 style="color: var(--secondary); margin-bottom: 20px;">➕ ADD NEW QUESTION</h3>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Class</label>
+                                <select id="teacher-class-select">
+                                   <option value="">Select Class</option>
+                                    <option value="1">Class 1</option>
+                                    <option value="2">Class 2</option>
+                                    <option value="3">Class 3</option>
+                                    <option value="4">Class 4</option>
+                                    <option value="5">Class 5</option>
+                                    <option value="6">Class 6</option>
+                                    <option value="7">Class 7</option>
+                                    <option value="8">Class 8</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Subject</label>
+                                <select id="teacher-subject-select">
+                                    <option value="">Select Subject</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Question</label>
+                            <textarea id="question-input" rows="3" placeholder="Enter your question here..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Options</label>
+                            <div class="option-input-group">
+                                <input type="radio" name="correct-option" value="0" id="opt-0">
+                                <input type="text" id="option-0" placeholder="Option A">
+                            </div>
+                            <div class="option-input-group">
+                                <input type="radio" name="correct-option" value="1" id="opt-1">
+                                <input type="text" id="option-1" placeholder="Option B">
+                            </div>
+                            <div class="option-input-group">
+                                <input type="radio" name="correct-option" value="2" id="opt-2">
+                                <input type="text" id="option-2" placeholder="Option C">
+                            </div>
+                            <div class="option-input-group">
+                                <input type="radio" name="correct-option" value="3" id="opt-3">
+                                <input type="text" id="option-3" placeholder="Option D">
+                            </div>
+                            <small class="text-muted">Select the correct answer</small>
+                        </div>
+
+                        <button class="btn btn-primary" onclick="addQuestion()">ADD QUESTION</button>
+                    </div>
+                    
+                        <div style="overflow-x: auto;">
+                        <table class="users-table">
+                            <thead>
+                                <tr>
+                                    <th>Photo</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Class</th>
+                                    <th>Score</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="admin-section">
+                    <h3 style="color: var(--primary); margin-bottom: 15px;">📊 SYSTEM STATISTICS</h3>
+                    <div class="dashboard-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Most Active Class</div>
+                            <div class="stat-value" style="font-size: 1.5rem;" id="most-active-class">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Top Subject</div>
+                            <div class="stat-value" style="font-size: 1.5rem;" id="top-subject">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="app-footer">
+            <div class="designer-box">
+                <img src="IMG_20221004_191436.jpg" alt="Mohammad Ashraf Rather" class="designer-photo">
+                <div class="designer-info">
+                    <div class="designer-name">Mohammad Ashraf Rather</div>
+                    <div class="designer-title">System Architect & Developer</div>
+                </div>
+            </div>
+            <p class="text-muted" style="margin-top: 15px; font-size: 0.85rem;">
+                © 2026 Smart Learning Portal. Empowering Education.
+            </p>
+        </div>
+    </div>
+
+    <!-- CERTIFICATE OVERLAY -->
+    <div id="cert-overlay" class="cert-overlay hidden">
+        <div class="cert-container" id="cert-printable">
+            <div class="cert-trophy">🏆</div>
+            <h1 class="cert-title">Certificate of Achievement</h1>
+            <p style="font-size: 1.1rem; margin: 15px 0;">This is to certify that</p>
+            <div class="cert-name" id="cert-student-name">Student Name</div>
+            <div class="cert-details">
+                <p>has successfully completed the assessment in</p>
+                <p style="font-size: 1.5rem; color: #b38728; font-weight: 700; margin: 15px 0;">
+                    <span id="cert-subject">Subject</span> - <span id="cert-class">Class X</span>
+                </p>
+                <p>with an outstanding score of <strong id="cert-score">95%</strong></p>
+                <p style="margin-top: 20px; font-size: 0.9rem; color: #555;">
+                    Date: <span id="cert-date"></span> | Certificate ID: <span id="cert-id"></span>
+                </p>
+            </div>
+            <div style="margin-top: 30px; text-align: right;">
+                <p style="font-size: 0.9rem; color: #555; margin-bottom: 5px;">Digitally Signed By:</p>
+                <p style="font-weight: 700; color: #8a6e2f;">Mohammad Ashraf Rather</p>
+                <p style="font-size: 0.8rem; color: #888;">System Administrator</p>
+            </div>
+        </div>
+        <div class="cert-actions">
+            <button class="btn btn-primary" onclick="downloadCertificate()">
+                                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
+                { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
+            ],
+            '5': [
+                { name: 'Mathematics', icon: '🔢', color: '#00d2ff' },
+                { name: 'English', icon: '📖', color: '#00ff88' },
+                { name: 'EVS', icon: '🌍', color: '#ffd700' },
+                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
+                { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
+            ],
+            '6': [
+                { name: 'Mathematics', icon: '🔢', color: '#00d2ff' },
+                { name: 'English', icon: '📖', color: '#00ff88' },
+                { name: 'Social Science', icon: '🏛️', color: '#ff9ff3' },
+                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
+                { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
+            ],
+            '7': [
+                { name: 'Mathematics', icon: '🔢', color: '#00d2ff' },
+                { name: 'English', icon: '📖', color: '#00ff88' },
+                { name: 'Social Science', icon: '🏛️', color: '#ff9ff3' },
+                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
+                { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
+            ],
+            '8': [
+                { name: 'Mathematics', icon: '🔢', color: '#00d2ff' },
+                { name: 'English', icon: '📖', color: '#00ff88' },
+                { name: 'Social Science', icon: '🏛️', color: '#ff9ff3' },
+                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
+                { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
+            ]
+        };
+
+        // Utility Functions
+        function toTitleCase(str) {
+            return str.toLowerCase().split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+        }
+
+        function generateId() {
+            return 'id-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        }
+                // Utility Functions
+        function toTitleCase(str) {
+            return str.toLowerCase().split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+        }
+
+        function generateId() {
+            return 'id-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        }
+
+        // Auth Functions
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentAuthMode = this.dataset.mode;
+                
+                if (currentAuthMode === 'signup') {
+                    document.getElementById('signup-section').classList.remove('hidden');
+                    document.getElementById('auth-submit').textContent = 'CREATE ACCOUNT';
+                } else {
+                    document.getElementById('signup-section').classList.add('hidden');
+                    document.getElementById('auth-submit').textContent = 'SIGN IN';
+                }
+            });
+        });
+
+        document.querySelectorAll('.role-card').forEach(card => {
+            card.addEventListener('click', function() {
+                document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedRole = this.dataset.role;
+                
+                const classSelect = document.getElementById('signup-class');
+                const subjectInput = document.getElementById('signup-subject');
+                
+                if (selectedRole === 'student') {
+                    classSelect.classList.remove('hidden');
+                    subjectInput.classList.add('hidden');
+                } else if (selectedRole === 'teacher') {
+                    classSelect.classList.add('hidden');
+                    subjectInput.classList.remove('hidden');
+                } else {
+                    classSelect.classList.add('hidden');
+                    subjectInput.classList.add('hidden');
+                }
+            });
+        });
+            
+                
     
     
     
