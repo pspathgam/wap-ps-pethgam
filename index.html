@@ -876,6 +876,67 @@
         </div>
         <div class="cert-actions">
             <button class="btn btn-primary" onclick="downloadCertificate()">
+                📥 DOWNLOAD</button>
+            <button class="btn-link" style="color: white;" onclick="closeCertificate()">← Back</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, orderBy, limit, getDocs, where, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC6FbPb36F69k7cw_tLbGQoVQxs6shzfAo",
+            authDomain: "math-world-3d.firebaseapp.com",
+            projectId: "math-world-3d",
+            storageBucket: "math-world-3d.firebasestorage.app",
+            messagingSenderId: "526717782686",
+            appId: "1:526717782686:web:21dddbcb293323eda8098f"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Global State
+        let currentUser = null;
+        let currentAuthMode = 'signin';
+        let selectedRole = 'student';
+        let photoBase64 = '';
+        let currentQuiz = null;
+        let currentQuestionIndex = 0;
+        let quizTimer = null;
+        let quizScore = 0;
+
+        // Subject Configuration
+        const subjectsByClass = {
+            '1': [
+                { name: 'Mathematics', icon: '🔢', color: '#00d2ff' },
+                { name: 'English', icon: '📖', color: '#00ff88' },
+                { name: 'EVS', icon: '🌍', color: '#ffd700' },
+                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
+                { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
+            ],
+            '2': [
+                { name: 'Mathematics', icon: '🔢', color: '#00d2ff' },
+                { name: 'English', icon: '📖', color: '#00ff88' },
+                { name: 'EVS', icon: '🌍', color: '#ffd700' },
+                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
+                { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
+            ],
+            '3': [
+                { name: 'Mathematics', icon: '🔢', color: '#00d2ff' },
+                { name: 'English', icon: '📖', color: '#00ff88' },
+                { name: 'EVS', icon: '🌍', color: '#ffd700' },
+                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
+                { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
+            ],
+            '4': [
+                { name: 'Mathematics', icon: '🔢', color: '#00d2ff' },
+                { name: 'English', icon: '📖', color: '#00ff88' },
+                { name: 'EVS', icon: '🌍', color: '#ffd700' },
                 { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
                 { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
             ],
