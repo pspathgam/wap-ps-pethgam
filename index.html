@@ -876,7 +876,7 @@
         </div>
         <div class="cert-actions">
             <button class="btn btn-primary" onclick="downloadCertificate()">
-                                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
+                { name: 'Urdu', icon: '📝', color: '#ff6b6b' },
                 { name: 'Kashmiri', icon: '🏔️', color: '#a29bfe' }
             ],
             '5': [
@@ -968,382 +968,131 @@
                 }
             });
         });
+                            alert(error.message);
+            }
+        });
+
+        document.getElementById('forgot-password-btn').addEventListener('click', async function() {
+            const email = document.getElementById('auth-email').value.trim();
+            if (!email) {
+                alert('Please enter your email address');
+                return;
+            }
+
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert('Password reset link sent to your email!');
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+                         const accuracy = currentUser.totalQuestions > 0 
+                ? Math.round((currentUser.correctAnswers / currentUser.totalQuestions) * 100)
+                : 0;
+            document.getElementById('student-accuracy').textContent = accuracy + '%';
             
+            const subjects = subjectsByClass[currentUser.class] || [];
+            document.getElementById('student-subjects').textContent = subjects.length;
                 
-    
-    
-    
-    
-    
-    
-    
-    
-    <li><a href="mdm-menu.html">Menu Plan</a></li>
-                            <li><a href="mdm-uptake.html">Daily MDM Uptake</a></li>
-                        </ul>
-                    </li>
-                    
-                    <li class="dropdown">
-                        <a href="#">Gallery <i class="fas fa-chevron-down"></i></a>
-                        <ul class="submenu">
-                            <li><a href="photo-gallery.html">Photo Gallery</a></li>
-                            <li><a href="video-gallery.html">Video Gallery</a></li>
-                        </ul>
-                    </li>
+            }
 
-                    <li class="dropdown">
-                        <a href="#">Staff <i class="fas fa-chevron-down"></i></a>
-                        <ul class="submenu">
-                            <li><a href="teacher-directory.html">Teacher Directory</a></li>
-                            <li><a href="staff-profiles.html">Staff Profiles</a></li>
-                            <li><a href="attendance-staff.html">Attendance</a></li>
-                        </ul>
-                    </li>
-                    
-                    <li class="dropdown">
-                        <a href="#">Downloads <i class="fas fa-chevron-down"></i></a>
-                        <ul class="submenu">
-                            <li><a href="download-bonafide.html">Bonafide Certificate</a></li>
-                            <li><a href="download-dob.html">DOB Certificate</a></li>
-                            <li><a href="download-duty.html">Duty Certificate</a></li>
-                            <li><a href="mdm-reports.html">MDM Reports</a></li>
-                            <li><a href="download-admission-pdf.html">Admission Form PDF</a></li>
-                        </ul>
-                    </li>
-                    
-                    <li class="dropdown">
-                        <a href="#">Contact <i class="fas fa-chevron-down"></i></a>
-                        <ul class="submenu">
-                            <li><a href="contact-form.html">Contact Form</a></li>
-                            <li><a href="google-map.html">Google Map</a></li>
-                        </ul>
-                    </li>
-                    
-                    <li class="dropdown admin-panel-link">
-                        <a href="#" class="btn btn-login admin">Admin Panel <i class="fas fa-user-lock"></i></a>
-                        <ul class="submenu right-aligned">
-                            <li><a href="admin-login.html">Admin Login</a></li>
-                            <li><a href="teacher-login.html">Teacher Login</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-    </header>
-        <main>
-        <section id="hero-section" class="full-width-banner">
-            <div class="slideshow-container">
-                <img src="images/hero-slide1.jpg" alt="School Campus View 1" class="hero-slide active">
-                <div class="overlay">
-                    <div class="hero-content container">
-                        <div class="logo-motto">
-                            <h1>Government Primary School Pethgam Wagoora</h1>
-                            <p class="motto">Nurturing young minds in the heart of Wagoora.</p>
-                        </div>
-                        <div class="animated-text">
-                            <h2>Excellence in Primary Education</h2>
-                            <p>Admissions are now open for the new academic session.</p>
-                        </div>
-                        <div class="admissions-popup">
-                            📢 Admissions Open! Last date to apply: March 31st.
-                        </div>
-                        <div class="quick-actions">
-                            <a href="online-admission.html" class="btn btn-hero btn-primary"><i class="fas fa-user-graduate"></i> Apply for Admission</a>
-                            <a href="academic-calendar.html" class="btn btn-hero btn-secondary"><i class="fas fa-book-open"></i> Academic Calendar</a>
-                            <a href="photo-gallery.html" class="btn btn-hero btn-tertiary"><i class="fas fa-camera"></i> Visit Gallery</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
+        function selectOption(index) {
+            document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+            document.querySelectorAll('.option')[index].classList.add('selected');
+            currentQuiz.selectedAnswer = index;
+        }
 
-        <section id="notification-ticker" class="ticker-bar">
-            <div class="container ticker-content">
-                <span class="ticker-label">📢 Notices:</span>
-                <div class="ticker-items">
-                    <a href="pdfs/notice1.pdf" class="ticker-item high-priority">Holiday on Dec 15th for local festival.</a>
-                    <a href="pdfs/circular-exam.pdf" class="ticker-item medium-priority">Term-I Exam Time Table released. Click to download.</a>
-                    <a href="pdfs/event-sports.pdf" class="ticker-item low-priority">Annual Day Function rehearsal schedule posted.</a>
-                </div>
-            </div>
-        </section>
-
-        <div class="content-wrapper container">
+        window.nextQuestion = function() {
+            clearInterval(quizTimer);
             
-            <section id="principal-message" class="section-padding">
-                <div class="section-header">
-                    <h2>Message From The Head of School</h2>
-                </div>
-                <div class="message-content">
-                    <img src="images/principal.jpg" alt="Head of School Photo" class="principal-photo">
-                    <div class="message-text">
-                        <p class="welcome-line">"It is my pleasure to welcome you to Government Primary School Pethgam Wagoora, where every child is valued."</p>
-                        <p class="welcome-line">"We strive for excellence in foundational learning and holistic growth."</p>
-                        <a href="principal-full-message.html" class="btn btn-readmore">Read More <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                </div>
-            </section>
-
-            <section id="about-school" class="section-padding">
-                <div class="section-header">
-                    <h2>Discover GPS Pethgam Wagoora</h2>
-                    <p>Our commitment to excellence in primary education.</p>
-                </div>
-                <div class="about-grid">
-                    <div class="about-card vision">
-                        <i class="fas fa-lightbulb"></i>
-                        <h3>Vision</h3>
-                        <p>To establish a foundation of lifelong learning and ethical citizenship.</p>
-                    </div>
-                    <div class="about-card mission">
-                        <i class="fas fa-bullseye"></i>
-                        <h3>Mission</h3>
-                        <p>Delivering quality, accessible, and inclusive primary education for all children in the Pethgam area.</p>
-                    </div>
-                    <div class="about-card infrastructure">
-                        <i class="fas fa-building"></i>
-                        <h3>Infrastructure</h3>
-                        <p>Safe, well-lit classrooms, clean facilities, and a dedicated play area.</p>
-                    </div>
-                    <div class="about-card achievements">
-                        <i class="fas fa-trophy"></i>
-                        <h3>Achievements</h3>
-                        <p>Highest student retention rate in the Wagoora zone.</p>
-                    </div>
-                    <div class="about-card facilities">
-                        <i class="fas fa-book-reader"></i>
-                        <h3>Key Facilities</h3>
-                        <ul>
-                            <li>Basic Smart Classes</li>
-                            <li>Small Library Corner</li>
-                            <li>Dedicated Play Area</li>
-                        </ul>
-                    </div>
-                    <div class="about-card awards">
-                        <i class="fas fa-award"></i>
-                        <h3>Awards</h3>
-                        <p>Recipient of the 'Clean School Award' by the District Administration.</p>
-                    </div>
-                </div>
-            </section>
-        </div> <section id="quick-info-boxes" class="full-width-bg section-padding">
-            <div class="container">
-                <div class="section-header white-text">
-                    <h2>Quick Resources</h2>
-                    <p>Access essential school information instantly.</p>
-                </div>
-                <div class="info-cards-grid">
-                    <a href="school-calendar.html" class="info-card calendar">
-                        <i class="fas fa-calendar-alt"></i>
-                        <h3>School Calendar</h3>
-                    </a>
-                    <a href="downloads.html" class="info-card downloads">
-                        <i class="fas fa-download"></i>
-                        <h3>Downloads</h3>
-                    </a>
-                    <a href="assignments.html" class="info-card homework">
-                        <i class="fas fa-pencil-alt"></i>
-                        <h3>Homework</h3>
-                    </a>
-                    <a href="mdm-uptake.html" class="info-card mdm">
-                        <i class="fas fa-utensils"></i>
-                        <h3>Mid-Day Meal</h3>
-                    </a>
-                    <a href="class-results.html" class="info-card results">
-                        <i class="fas fa-chart-bar"></i>
-                        <h3>Result Panel</h3>
-                    </a>
-                    <a href="student-login.html" class="info-card attendance">
-                        <i class="fas fa-clipboard-check"></i>
-                        <h3>Attendance</h3>
-                    </a>
-                    <a href="certificates-request.html" class="info-card certificates">
-                        <i class="fas fa-certificate"></i>
-                        <h3>Certificates</h3>
-                    </a>
-                    <a href="student-profiles.html" class="info-card profiles">
-                        <i class="fas fa-id-card"></i>
-                        <h3>Student Profiles</h3>
-                    </a>
-                </div>
-            </div>
-        </section>
-        
-        <div class="content-wrapper container">
+            const question = currentQuiz.questions[currentQuestionIndex];
             
-            <section id="gallery-section" class="section-padding">
-                <div class="section-header">
-                    <h2>Our Gallery</h2>
-                    <p>Memories from GPS Pethgam Wagoora.</p>
-                </div>
-                <div class="gallery-content">
-                    <div class="photo-scroll-gallery">
-                        <img src="images/gallery/photo1.jpg" alt="Event Photo 1" loading="lazy">
-                        <img src="images/gallery/photo2.jpg" alt="Event Photo 2" loading="lazy">
-                        <img src="images/gallery/photo3.jpg" alt="Event Photo 3" loading="lazy">
-                        <a href="photo-gallery.html" class="gallery-more-card">View All Photos <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                    <div class="video-preview-box">
-                        <h3>School Highlights Video</h3>
-                        <div class="video-embed-wrapper">
-                            <iframe width="560" height="315" src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="School Highlights Video"></iframe>
-                        </div>
-                    </div>
-                </div>
-                <div class="event-albums-section">
-                    <h3>Explore Event Albums</h3>
-                    <ul class="album-list">
-                        <li><a href="album-independence-day.html">Independence Day 2025</a></li>
-                        <li><a href="album-enrollment-drive.html">New Enrollment Drive</a></li>
-                    </ul>
-                </div>
-            </section>
+            if (currentQuiz.selectedAnswer !== undefined) {
+                if (currentQuiz.selectedAnswer === question.correctAnswer) {
+                    quizScore += 10;
+                    document.querySelectorAll('.option')[currentQuiz.selectedAnswer].classList.add('correct');
+                    confetti();
+                } else {
+                    document.querySelectorAll('.option')[currentQuiz.selectedAnswer].classList.add('wrong');
+                    document.querySelectorAll('.option')[question.correctAnswer].classList.add('correct');
+                }
+            } else {
+                document.querySelectorAll('.option')[question.correctAnswer].classList.add('correct');
+            }
 
-            <section id="news-events" class="section-padding">
-                <div class="section-header">
-                    <h2>News & Events</h2>
-                </div>
-                <div class="news-events-grid">
-                    <div class="upcoming-events">
-                        <h3>Upcoming Events</h3>
-                        <div class="event-slider">
-                            <div class="event-item"><span class="event-date">10 Jan</span><h4>PTA Meeting</h4></div>
-                            <div class="event-item"><span class="event-date">25 Jan</span><h4>Republic Day Celebrations</h4></div>
-                        </div>
-                        <a href="#" class="btn btn-viewall">View All Events</a>
-                    </div>
-                    <div class="latest-news">
-                        <h3>Latest News & Circulars</h3>
-                        <ul class="news-list">
-                            <li><span class="news-date">[05/12/2025]</span> <a href="#">New Teaching Methodology Workshop Completed.</a></li>
-                            <li><span class="news-date">[01/12/2025]</span> <a href="circulars/mdm-change.pdf">Circular: MDM Menu Change for Winter Season.</a></li>
-                        </ul>
-                        <a href="#" class="btn btn-viewall">View All News</a>
-                    </div>
-                    <div class="press-clips">
-                        <h3>Press Clips</h3>
-                        <ul>
-                            <li><a href="#">The Daily Awaaz: GPS Pethgam student tops district level competition.</a></li>
-                            <li><a href="#">Village News: Successful implementation of MDM scheme.</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </section>
+            setTimeout(() => {
+                currentQuestionIndex++;
+                currentQuiz.selectedAnswer = undefined;
+                loadQuestion();
+            }, 1500);
+        };
 
-            <section id="stats-counter" class="section-padding full-width-bg dark-bg">
-                <div class="container">
-                    <div class="stats-grid">
-                        <div class="stat-item"><span class="stat-number" data-target="150">0</span><p>Students Enrolled</p></div>
-                        <div class="stat-item"><span class="stat-number" data-target="8">0</span><p>Dedicated Teachers</p></div>
-                        <div class="stat-item"><span class="stat-number" data-target="10">0</span><p>Major Awards Won</p></div>
-                        <div class="stat-item"><span class="stat-number" data-target="30">0</span><p>Years of Service</p></div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="featured-programs" class="section-padding">
-                <div class="section-header"><h2>Our Co-Curricular Focus</h2></div>
-                <div class="programs-grid">
-                    <div class="program-card smart-classes"><i class="fas fa-chalkboard-teacher"></i><h4>Smart Classes</h4></div>
-                    <div class="program-card sports"><i class="fas fa-running"></i><h4>Sports & Games</h4></div>
-                    <div class="program-card computer"><i class="fas fa-desktop"></i><h4>Computer Literacy</h4></div>
-                    <div class="program-card eco-club"><i class="fas fa-leaf"></i><h4>Eco-Club</h4></div>
-                    <div class="program-card cultural"><i class="fas fa-theater-masks"></i><h4>Cultural Events</h4></div>
-                    <div class="program-card scouts"><i class="fas fa-campground"></i><h4>Scouts/Guides</h4></div>
-                </div>
-            </section>
-
-            <section id="testimonials" class="section-padding full-width-bg curved-bg">
-                <div class="container">
-                    <div class="section-header"><h2>Parents' Voice</h2></div>
-                    <div class="testimonial-slider">
-                        <div class="testimonial-slide">
-                            <img src="images/parent1.jpg" alt="Parent Photo" class="parent-photo">
-                            <div class="rating-stars">
-                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
-                            </div>
-                            <blockquote class="feedback-text">"My child's reading skills improved dramatically within a year. The teachers are supportive and truly care."</blockquote>
-                            <p class="parent-name">Mr. Ghulam Rasool (Parent of Class 3 Student)</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="download-center" class="section-padding">
-                <div class="section-header"><h2>Quick Download Center</h2></div>
-                <div class="download-buttons-grid">
-                    <a href="downloads/id-card-template.pdf" class="btn btn-download"><i class="fas fa-id-card"></i> Student ID Card Form</a>
-                    <a href="downloads/admission-form.pdf" class="btn btn-download"><i class="fas fa-file-pdf"></i> Admission Form PDF</a>
-                    <a href="downloads/bonafide-cert.pdf" class="btn btn-download"><i class="fas fa-award"></i> Bonafide Certificate Req.</a>
-                    <a href="downloads/dob-cert.pdf" class="btn btn-download"><i class="fas fa-calendar-check"></i> DOB Certificate Req.</a>
-                </div>
-            </section>
-
-        </div> </main>
-
-    <footer id="main-footer">
-        <div class="container footer-content">
+        window.finishQuiz = async function() {
+            clearInterval(quizTimer);
             
-            <div class="footer-columns-grid">
-                <div class="footer-col col-about">
-                    <img src="images/logo-footer.png" alt="GPS Pethgam Wagoora Logo" class="footer-logo">
-                    <p>Government Primary School Pethgam Wagoora is dedicated to providing quality primary education and shaping young citizens.</p>
-                </div>
-
-                <div class="footer-col col-links">
-                    <h4>Important Links</h4>
-                    <ul>
-                        <li><a href="infrastructure.html">Infrastructure</a></li>
-                        <li><a href="mdm-menu.html">MDM Menu Plan</a></li>
-                        <li><a href="teacher-directory.html">Teacher Directory</a></li>
-                        <li><a href="online-admission.html">Online Admission</a></li>
-                    </ul>
-                </div>
-
-                <div class="footer-col col-downloads">
-                    <h4>Quick Downloads</h4>
-                    <ul>
-                        <li><a href="downloads/admission-form.pdf"><i class="fas fa-file-pdf"></i> Admission Form PDF</a></li>
-                        <li><a href="download-bonafide.html"><i class="fas fa-award"></i> Bonafide Certificate</a></li>
-                        <li><a href="download-duty.html"><i class="fas fa-file-alt"></i> Duty Certificate</a></li>
-                        <li><a href="mdm-reports.html"><i class="fas fa-clipboard-list"></i> MDM Reports</a></li>
-                    </ul>
-                </div>
-
-                <div class="footer-col col-contact">
-                    <h4>Contact Information</h4>
-                    <p><i class="fas fa-map-marker-alt"></i> Pethgam, Wagoora, District Baramulla, J&K (Pincode: 193109)</p>
-                    <p><i class="fas fa-phone"></i> <a href="tel:+919586449881">+91 95864 49881</a></p>
-                    <p><i class="fas fa-envelope"></i> <a href="mailto:info@gps-pethgam.edu">info@gps-pethgam.edu</a></p>
-                </div>
-            </div>
+            const question = currentQuiz.questions[currentQuestionIndex];
             
-            <div class="footer-map-social">
-                <div class="footer-map">
-                    <h4>Locate Us</h4>
-                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d12345.67890!2d74.8000!3d34.0000!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zM0QwNjAwMDAwMDE4MjY0NA!5e0!3m2!1sen!2sin!4v1672531200000" width="100%" height="200" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
-                </div>
+            if (currentQuiz.selectedAnswer !== undefined) {
+                if (currentQuiz.selectedAnswer === question.correctAnswer) {
+                    quizScore += 10;
+                }
+            }
+                                    <td><img src="${user.photoURL || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"></td>
+                    <td>${user.name}</td>
+                    <td>${user.email}</td>
+                    <td><span class="user-badge">${user.role.toUpperCase()}</span></td>
+                    <td>${user.class || '-'}</td>
+                    <td>${user.score || 0}</td>
+                    <td>
+                        <button class="btn-small btn-delete" onclick="deleteUser('${user.id}')">🗑️ Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
 
-                <div class="social-links">
-                    <h4>Connect With Us</h4>
-                    <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-                    <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
-                </div>
-            </div>
-        </div>
+        function calculateStatistics(users) {
+            const classCounts = {};
+            users.filter(u => u.role === 'student').forEach(user => {
+                classCounts[user.class] = (classCounts[user.class] || 0) + 1;
+            });
 
-        <div class="bottom-strip">
-            <div class="container bottom-content">
-                <p>© 2025 Government Primary School Pethgam Wagoora. All Rights Reserved.</p>
-                <p class="design-credit">Designed by [Optional Designer Credit] | <a href="privacy-policy.html">Privacy Policy</a></p>
-            </div>
-        </div>
-    </footer>
+            const mostActiveClass = Object.entries(classCounts).sort((a, b) => b[1] - a[1])[0];
+            document.getElementById('most-active-class').textContent = 
+                mostActiveClass ? `Class ${mostActiveClass[0]}` : '-';
 
-    <script src="js/jquery.min.js"></script>
-    <script src="js/main.js">
-        
-</script>
+            // For top subject, we'd need to count quiz attempts - simplified here
+            document.getElementById('top-subject').textContent = 'Mathematics';
+        }
+
+        window.deleteUser = async function(userId) {
+            if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+
+            try {
+                await deleteDoc(doc(db, 'users', userId));
+                alert('User deleted successfully');
+                loadAdminPanel();
+            } catch (error) {
+                alert('Error deleting user: ' + error.message);
+            }
+        };
+
+        // Global Functions
+        window.showProfile = function() {
+            alert('Profile feature coming soon!');
+        };
+
+        window.logout = async function() {
+            if (confirm('Are you sure you want to logout?')) {
+                await signOut(auth);
+                location.reload();
+            }
+        };
+
+        // Initialize first role card as selected
+        document.querySelector('.role-card[data-role="student"]').classList.add('selected');
+    </script>
 </body>
-</html>
+ </html>
+    
+                                              
